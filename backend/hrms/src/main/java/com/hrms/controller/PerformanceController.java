@@ -210,4 +210,47 @@ public class PerformanceController {
                         )
                 );
     }
+
+    /*
+     * ============================================================
+     * DELETE SINGLE REVIEW
+     * ============================================================
+     */
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','HR')")
+    @Operation(summary = "Delete a performance review")
+    public ResponseEntity<ApiResponse<Void>> delete(
+            @PathVariable Long id) {
+
+        performanceService.deleteReview(id);
+
+        return ResponseEntity
+                .ok(
+                        ApiResponse.success(
+                                "Review deleted",
+                                null
+                        )
+                );
+    }
+
+    /*
+     * ============================================================
+     * DELETE ALL REVIEWS ("Clear All")
+     * ============================================================
+     */
+    @DeleteMapping("/clear-all")
+    @PreAuthorize("hasAnyRole('ADMIN','HR')")
+    @Operation(summary = "Delete all performance reviews")
+    public ResponseEntity<ApiResponse<Void>> clearAll() {
+
+        performanceService.deleteAllReviews();
+
+        return ResponseEntity
+                .ok(
+                        ApiResponse.success(
+                                "All reviews cleared",
+                                null
+                        )
+                );
+    }
 }

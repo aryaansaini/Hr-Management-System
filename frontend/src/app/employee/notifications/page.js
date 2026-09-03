@@ -140,6 +140,23 @@ export default function EmployeeNotificationsPage() {
 
   const handleMarkAll = async () => {
 
+
+    // Job details page expects ?id=, every other page expects ?highlight=
+    if (n.referenceType === 'JobPosting') {
+      router.push(`/employee/jobs/details?id=${encodeURIComponent(n.referenceId)}`);
+    }
+
+    const path = REFERENCE_ROUTES[n.referenceType];
+    if (path) {
+      router.push(`${path}?highlight=${n.referenceId}`);
+    }
+  };
+
+  /*
+   * Mark all notifications as read
+   */
+  const handleMarkAllRead = async () => {
+
     setMarkingAll(true);
 
     try {

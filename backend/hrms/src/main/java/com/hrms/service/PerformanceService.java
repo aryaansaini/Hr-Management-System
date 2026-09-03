@@ -446,6 +446,29 @@ public class PerformanceService {
 
     /*
      * ============================================================
+     * DELETE SINGLE REVIEW
+     * ============================================================
+     */
+    @Transactional
+    public void deleteReview(Long id) {
+        if (!reviewRepo.existsById(id)) {
+            throw new NoSuchElementException("Review not found: " + id);
+        }
+        reviewRepo.deleteById(id);
+    }
+
+    /*
+     * ============================================================
+     * DELETE ALL REVIEWS (Admin/HR "Clear All")
+     * ============================================================
+     */
+    @Transactional
+    public void deleteAllReviews() {
+        reviewRepo.deleteAll();
+    }
+
+    /*
+     * ============================================================
      * FIND REVIEW
      * ============================================================
      */

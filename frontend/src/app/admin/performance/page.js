@@ -12,6 +12,8 @@ import {
   MessageSquare,
   Loader2,
   FileEdit,
+  Trash2,
+  X,
 } from 'lucide-react';
 
 /* =========================================================
@@ -294,6 +296,16 @@ export default function PerformancePage() {
   const [totalPages, setTotalPages] = useState(1);
 
   const [editingDraftId, setEditingDraftId] = useState(null);
+
+  /* =======================================================
+     DELETE / CLEAR ALL STATE
+     ======================================================= */
+
+  const [deletingId, setDeletingId] = useState(null);
+  const [clearingAll, setClearingAll] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [reviewToDelete, setReviewToDelete] = useState(null);
 
   /* =======================================================
      FETCH DATA
@@ -671,6 +683,82 @@ export default function PerformancePage() {
   };
 
   /* =======================================================
+     DELETE SINGLE REVIEW
+     ======================================================= */
+
+  const openDeleteModal = (review) => {
+    setReviewToDelete(review);
+    setShowDeleteModal(true);
+  };
+
+  const handleDelete = async () => {
+    if (!reviewToDelete) {
+      return;
+    }
+
+    const id = reviewToDelete.id;
+
+    setDeletingId(id);
+
+    try {
+      await api.delete(`/api/performance/${id}`);
+
+      toast.success('Review deleted');
+
+      setShowDeleteModal(false);
+      setReviewToDelete(null);
+
+      if (selected?.id === id) {
+        setSelected(null);
+      }
+
+      fetchAll();
+    } catch (err) {
+      toast.error(
+        err.response?.data?.message ||
+          'Failed to delete review'
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  /* =======================================================
+     CLEAR ALL REVIEWS
+     ======================================================= */
+
+  const openClearAllModal = () => {
+    if (reviews.length === 0) {
+      return;
+    }
+
+    setShowClearModal(true);
+  };
+
+  const handleClearAll = async () => {
+    setClearingAll(true);
+
+    try {
+      await api.delete('/api/performance/clear-all');
+
+      toast.success('All reviews cleared');
+
+      setShowClearModal(false);
+      setSelected(null);
+      setPage(0);
+
+      fetchAll();
+    } catch (err) {
+      toast.error(
+        err.response?.data?.message ||
+          'Failed to clear reviews'
+      );
+    } finally {
+      setClearingAll(false);
+    }
+  };
+
+  /* =======================================================
      CURRENT DATE INFORMATION
      ======================================================= */
 
@@ -710,14 +798,31 @@ export default function PerformancePage() {
 
         </div>
 
-        <button
-          onClick={
-            handleOpenCreateReview
-          }
-          className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-lg text-sm font-semibold transition shadow-sm"
-        >
-          + Create Review
-        </button>
+        <div className="flex items-center gap-2">
+
+          {reviews.length > 0 && (
+
+            <button
+              onClick={openClearAllModal}
+              disabled={clearingAll}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-900 border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg text-sm font-semibold transition disabled:opacity-50"
+            >
+              <Trash2 size={14} />
+              {clearingAll ? 'Clearing...' : 'Clear All'}
+            </button>
+
+          )}
+
+          <button
+            onClick={
+              handleOpenCreateReview
+            }
+            className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-lg text-sm font-semibold transition shadow-sm"
+          >
+            + Create Review
+          </button>
+
+        </div>
 
       </div>
 
@@ -840,11 +945,11 @@ export default function PerformancePage() {
 
         <div className="overflow-x-auto">
 
-          <div className="min-w-[760px]">
+          <div className="min-w-[840px]">
 
             {/* TABLE HEADER */}
 
-            <div className="grid grid-cols-5 px-5 py-3 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            <div className="grid grid-cols-6 px-5 py-3 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
 
               <div>
                 Employee
@@ -864,6 +969,10 @@ export default function PerformancePage() {
 
               <div>
                 Review Date
+              </div>
+
+              <div className="text-right">
+                Actions
               </div>
 
             </div>
@@ -930,7 +1039,7 @@ export default function PerformancePage() {
                             : r
                         )
                       }
-                      className={`grid grid-cols-5 px-5 py-3.5 border-b border-slate-100 dark:border-slate-800/80 items-center cursor-pointer transition ${
+                      className={`grid grid-cols-6 px-5 py-3.5 border-b border-slate-100 dark:border-slate-800/80 items-center cursor-pointer transition ${
                         isSelected
                           ? 'bg-blue-50/70 dark:bg-blue-950/40'
                           : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
@@ -1007,6 +1116,30 @@ export default function PerformancePage() {
                         {
                           r.reviewDate
                         }
+                      </div>
+
+                      {/* Actions */}
+
+                      <div className="flex justify-end">
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openDeleteModal(r);
+                          }}
+                          disabled={deletingId === r.id}
+                          title="Delete review"
+                          aria-label="Delete review"
+                          className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 hover:border-red-200 dark:hover:border-red-900/50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {deletingId === r.id ? (
+                            <Loader2 size={14} className="animate-spin" />
+                          ) : (
+                            <Trash2 size={14} />
+                          )}
+                        </button>
+
                       </div>
 
                     </div>
@@ -1859,6 +1992,179 @@ export default function PerformancePage() {
               </div>
 
             </form>
+
+          </div>
+
+        </div>
+
+      )}
+
+      {/* ===================================================
+          DELETE SINGLE REVIEW MODAL
+          =================================================== */}
+
+      {showDeleteModal && reviewToDelete && (
+
+        <div
+          className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+          onClick={() => {
+            if (deletingId === null) {
+              setShowDeleteModal(false);
+              setReviewToDelete(null);
+            }
+          }}
+        >
+
+          <div
+            className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-md border border-slate-200 dark:border-slate-800 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+
+            <div className="flex justify-between items-center mb-3.5">
+
+              <div className="flex items-center gap-2.5">
+
+                <div className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 flex items-center justify-center">
+                  <Trash2 size={18} />
+                </div>
+
+                <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">
+                  Delete Review?
+                </h2>
+
+              </div>
+
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setReviewToDelete(null);
+                }}
+                disabled={deletingId !== null}
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+
+            </div>
+
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              Are you sure you want to delete this performance review? This action cannot be undone.
+            </p>
+
+            <div className="mt-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-lg p-3">
+
+              <div className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                {reviewToDelete.employeeName}
+              </div>
+
+              <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                {reviewToDelete.reviewPeriod} · {reviewToDelete.status}
+              </div>
+
+            </div>
+
+            <div className="flex justify-end gap-2.5 mt-5">
+
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setReviewToDelete(null);
+                }}
+                disabled={deletingId !== null}
+                className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleDelete}
+                disabled={deletingId !== null}
+                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-semibold disabled:opacity-50"
+              >
+                {deletingId !== null ? 'Deleting...' : 'Delete'}
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
+
+      {/* ===================================================
+          CLEAR ALL REVIEWS MODAL
+          =================================================== */}
+
+      {showClearModal && (
+
+        <div
+          className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+          onClick={() => {
+            if (!clearingAll) {
+              setShowClearModal(false);
+            }
+          }}
+        >
+
+          <div
+            className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-md border border-slate-200 dark:border-slate-800 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+
+            <div className="flex justify-between items-center mb-3.5">
+
+              <div className="flex items-center gap-2.5">
+
+                <div className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 flex items-center justify-center">
+                  <Trash2 size={18} />
+                </div>
+
+                <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">
+                  Clear All Reviews?
+                </h2>
+
+              </div>
+
+              <button
+                onClick={() => setShowClearModal(false)}
+                disabled={clearingAll}
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+
+            </div>
+
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              All performance reviews for every employee will be permanently deleted.
+            </p>
+
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mt-1.5 font-semibold">
+              This action cannot be undone.
+            </p>
+
+            <div className="flex justify-end gap-2.5 mt-5">
+
+              <button
+                onClick={() => setShowClearModal(false)}
+                disabled={clearingAll}
+                className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleClearAll}
+                disabled={clearingAll}
+                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-semibold disabled:opacity-50"
+              >
+                {clearingAll ? 'Clearing...' : 'Clear All'}
+              </button>
+
+            </div>
 
           </div>
 
