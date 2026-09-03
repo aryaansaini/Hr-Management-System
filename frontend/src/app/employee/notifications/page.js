@@ -371,8 +371,7 @@ export default function NotificationsPage() {
 
     // Job details page expects ?id=, every other page expects ?highlight=
     if (n.referenceType === 'JobPosting') {
-      router.push(`${JOB_POSTING_ROUTE}?id=${n.referenceId}`);
-      return;
+      router.push(`/employee/jobs/details?id=${encodeURIComponent(n.referenceId)}`);
     }
 
     const path = REFERENCE_ROUTES[n.referenceType];
