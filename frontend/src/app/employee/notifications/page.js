@@ -138,20 +138,6 @@ export default function EmployeeNotificationsPage() {
   };
 
 
-  const handleMarkAll = async () => {
-
-
-    // Job details page expects ?id=, every other page expects ?highlight=
-    if (n.referenceType === 'JobPosting') {
-      router.push(`/employee/jobs/details?id=${encodeURIComponent(n.referenceId)}`);
-    }
-
-    const path = REFERENCE_ROUTES[n.referenceType];
-    if (path) {
-      router.push(`${path}?highlight=${n.referenceId}`);
-    }
-  };
-
   /*
    * Mark all notifications as read
    */
@@ -210,7 +196,7 @@ export default function EmployeeNotificationsPage() {
         }
 
         if (type.includes('JOB_POSTED') || type.includes('JOBPOSTING')) {
-          router.push(`/employee/job-openings?id=${encodeURIComponent(referenceId)}`);
+          router.push(`/employee/jobs/details?id=${encodeURIComponent(referenceId)}`);
           return;
         }
 
@@ -863,7 +849,7 @@ export default function EmployeeNotificationsPage() {
           {unreadCount > 0 && (
             <button
               className="emp-notification-action"
-              onClick={handleMarkAll}
+              onClick={handleMarkAllRead}
               disabled={markingAll}
               style={{
                 padding: '11px 20px',
@@ -1525,3 +1511,4 @@ export default function EmployeeNotificationsPage() {
     </div>
   );
 }
+
