@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+
 @Service
 @RequiredArgsConstructor
 public class AttendanceService {
@@ -191,6 +192,31 @@ public class AttendanceService {
     public Page<AttendanceDTOs.Response> getAttendanceByDate(LocalDate date, Pageable pageable) {
         return attendanceRepo.findByDate(date, pageable).map(this::toResponse);
     }
+    @Transactional
+public void deleteMyAttendance(Long employeeId, Long attendanceId) {
+    Employee emp = employeeService.findById(employeeId);
+
+    Attendance attendance = attendanceRepo.findById(attendanceId)
+            .orElseThrow(() -> new IllegalStateException("Attendance record not found"));
+
+    // Employee can delete only their own attendance record
+    if (!attendance.getEmployee().getId().equals(emp.getId())) {
+        throw new IllegalStateException(
+                "You are not allowed to delete this attendance record"
+        );
+    }
+
+    attendanceRepo.delete(attendance);
+}
+@Transactional
+public void clearMyAttendance(Long employeeId) {
+    Employee emp = employeeService.findById(employeeId);
+
+    List<Attendance> attendanceRecords =
+            attendanceRepo.findByEmployee(emp);
+
+    attendanceRepo.deleteAll(attendanceRecords);
+}
 
     @Transactional(readOnly = true)
     public AttendanceDTOs.EmployeeDetailedReport getEmployeeDetailedReport(Long employeeId, LocalDate asOfDate) {
@@ -314,6 +340,7 @@ public class AttendanceService {
 
         return buildAttendanceWorkbook(exportData, from, to);
     }
+
 
     // ===== EXPORT: single employee, date range =====
     @Transactional(readOnly = true)

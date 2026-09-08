@@ -1,368 +1,1983 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { useTheme } from 'next-themes';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
 
-const getHolidaysForYear = (year) => {
-  return [
-    // Fixed Date Holidays
-    { date: `${year}-01-01`, name: 'New Year\'s Day', color: '#10b981' },
-    { date: `${year}-01-13`, name: 'Lohri', color: '#64748b' },
-    { date: `${year}-01-14`, name: 'Makar Sankranti / Pongal', color: '#10b981' },
-    { date: `${year}-01-15`, name: 'Thiruvalluvar Day', color: '#64748b' },
-    { date: `${year}-01-23`, name: 'Netaji Subhas Chandra Bose Jayanti', color: '#64748b' },
-    { date: `${year}-01-26`, name: 'Republic Day', color: '#10b981' },
-    { date: `${year}-02-19`, name: 'Shivaji Jayanti', color: '#64748b' },
-    { date: `${year}-04-14`, name: 'Ambedkar Jayanti / Vaisakhi / Vishu', color: '#64748b' },
-    { date: `${year}-05-01`, name: 'Labour Day / Maharashtra Day', color: '#64748b' },
-    { date: `${year}-05-09`, name: 'Rabindranath Tagore Jayanti', color: '#64748b' },
-    { date: `${year}-08-15`, name: 'Independence Day', color: '#10b981' },
-    { date: `${year}-10-02`, name: 'Gandhi Jayanti', color: '#10b981' },
-    { date: `${year}-12-25`, name: 'Christmas Day', color: '#10b981' },
-    { date: `${year}-12-31`, name: 'New Year\'s Eve', color: '#10b981' },
-    
-    // Dynamic/Lunar/Regional Holidays (Approximate for 2026)
-    ...(year === 2026 ? [
-      { date: '2026-01-24', name: 'Basant Panchami / Vasant Panchami', color: '#64748b' },
-      { date: '2026-02-14', name: 'Maha Shivaratri', color: '#10b981' },
-      { date: '2026-03-03', name: 'Holi / Dolyatra', color: '#10b981' },
-      { date: '2026-03-19', name: 'Chaitra Sukladi / Gudi Padwa / Ugadi', color: '#64748b' },
-      { date: '2026-03-20', name: 'Eid al-Fitr (Ramzan Id)', color: '#10b981' },
-      { date: '2026-03-21', name: 'Cheti Chand', color: '#64748b' },
-      { date: '2026-03-28', name: 'Ram Navami', color: '#10b981' },
-      { date: '2026-03-30', name: 'Mahavir Jayanti', color: '#10b981' },
-      { date: '2026-04-03', name: 'Good Friday', color: '#10b981' },
-      { date: '2026-04-05', name: 'Easter Sunday', color: '#10b981' },
-      { date: '2026-05-27', name: 'Eid al-Adha (Bakrid)', color: '#10b981' },
-      { date: '2026-05-31', name: 'Buddha Purnima', color: '#10b981' },
-      { date: '2026-06-17', name: 'Muharram (Ashura)', color: '#10b981' },
-      { date: '2026-08-25', name: 'First Day of Onam', color: '#64748b' },
-      { date: '2026-08-26', name: 'Thiruvonam (Onam)', color: '#64748b' },
-      { date: '2026-08-28', name: 'Raksha Bandhan', color: '#10b981' },
-      { date: '2026-09-04', name: 'Janmashtami (Smarta)', color: '#10b981' },
-      { date: '2026-09-14', name: 'Ganesh Chaturthi / Vinayaka Chaturthi', color: '#10b981' },
-      { date: '2026-10-18', name: 'Dussehra (Vijayadashami)', color: '#10b981' },
-      { date: '2026-10-31', name: 'Karva Chauth', color: '#10b981' },
-      { date: '2026-11-08', name: 'Diwali (Deepavali)', color: '#10b981' },
-      { date: '2026-11-09', name: 'Govardhan Puja', color: '#10b981' },
-      { date: '2026-11-10', name: 'Bhai Dooj', color: '#10b981' },
-      { date: '2026-11-15', name: 'Chhath Puja', color: '#10b981' },
-      { date: '2026-11-24', name: 'Guru Nanak Jayanti', color: '#10b981' },
-    ] : []),
-  ];
-};
+/* =========================================================
+   HOLIDAY DATA
+========================================================= */
+
+const HOLIDAYS_2026 = [
+  {
+    date: '2026-01-01',
+    name: "New Year's Day",
+    type: 'Public Holiday',
+    description:
+      "New Year's Day marks the beginning of the new calendar year.",
+    icon: '🎉',
+    category: 'festival',
+  },
+  {
+    date: '2026-01-13',
+    name: 'Lohri',
+    type: 'Public Holiday',
+    description:
+      'Lohri is a popular winter festival celebrated with bonfires, music and traditional festivities.',
+    icon: '🔥',
+    category: 'festival',
+  },
+  {
+    date: '2026-01-14',
+    name: 'Makar Sankranti / Pongal',
+    type: 'Public Holiday',
+    description:
+      'Makar Sankranti and Pongal celebrate the harvest season and the movement of the sun into a new zodiac sign.',
+    icon: '🌾',
+    category: 'festival',
+  },
+  {
+    date: '2026-01-15',
+    name: 'Thiruvalluvar Day',
+    type: 'Public Holiday',
+    description:
+      'Thiruvalluvar Day honours the celebrated Tamil poet and philosopher Thiruvalluvar.',
+    icon: '📖',
+    category: 'festival',
+  },
+  {
+    date: '2026-01-23',
+    name: 'Netaji Subhas Chandra Bose Jayanti',
+    type: 'Public Holiday',
+    description:
+      'Birth anniversary of Netaji Subhas Chandra Bose.',
+    icon: '🇮🇳',
+    category: 'national',
+  },
+  {
+    date: '2026-01-24',
+    name: 'Basant Panchami / Vasant Panchami',
+    type: 'Public Holiday',
+    description:
+      'Basant Panchami marks the arrival of spring and is associated with Goddess Saraswati.',
+    icon: '🌼',
+    category: 'festival',
+  },
+  {
+    date: '2026-01-26',
+    name: 'Republic Day',
+    type: 'Public Holiday',
+    description:
+      'Republic Day of India.',
+    icon: '🇮🇳',
+    category: 'national',
+  },
+
+  {
+    date: '2026-02-15',
+    name: 'Mahashivratri',
+    type: 'Public Holiday',
+    description:
+      'Mahashivratri is an important Hindu festival dedicated to Lord Shiva.',
+    icon: '🔱',
+    category: 'festival',
+  },
+  {
+    date: '2026-02-19',
+    name: 'Chhatrapati Shivaji Maharaj Jayanti',
+    type: 'Public Holiday',
+    description:
+      'Birth anniversary of Chhatrapati Shivaji Maharaj.',
+    icon: '⚔️',
+    category: 'national',
+  },
+
+  {
+    date: '2026-03-03',
+    name: 'Holi / Dol Yatra',
+    type: 'Public Holiday',
+    description:
+      'Holi is the festival of colours, celebrating joy, spring and togetherness.',
+    icon: '🎨',
+    category: 'festival',
+  },
+  {
+    date: '2026-03-19',
+    name: 'Chaitra Sukladi / Gudhi Padwa / Ugadi',
+    type: 'Public Holiday',
+    description:
+      'These festivals mark the beginning of the traditional New Year in different parts of India.',
+    icon: '🏵️',
+    category: 'festival',
+  },
+  {
+    date: '2026-03-20',
+    name: 'Eid al-Fitr (Ramzan Id)',
+    type: 'Public Holiday',
+    description:
+      'Eid al-Fitr marks the end of Ramadan and is celebrated with prayers, family gatherings and festive meals.',
+    icon: '🌙',
+    category: 'festival',
+  },
+  {
+    date: '2026-03-21',
+    name: 'Cheti Chand',
+    type: 'Public Holiday',
+    description:
+      'Cheti Chand is celebrated as the New Year festival by the Sindhi community.',
+    icon: '🌙',
+    category: 'festival',
+  },
+  {
+    date: '2026-03-28',
+    name: 'Ram Navami',
+    type: 'Public Holiday',
+    description:
+      'Ram Navami celebrates the birth of Lord Rama.',
+    icon: '🏹',
+    category: 'festival',
+  },
+  {
+    date: '2026-03-30',
+    name: 'Mahavir Jayanti',
+    type: 'Public Holiday',
+    description:
+      'Mahavir Jayanti commemorates the birth of Lord Mahavira.',
+    icon: '🪷',
+    category: 'festival',
+  },
+
+  {
+    date: '2026-04-03',
+    name: 'Good Friday',
+    type: 'Public Holiday',
+    description:
+      'Christian observance commemorating the crucifixion of Jesus Christ.',
+    icon: '✝️',
+    category: 'festival',
+  },
+  {
+    date: '2026-04-05',
+    name: 'Easter Sunday',
+    type: 'Public Holiday',
+    description:
+      'Easter Sunday celebrates the resurrection of Jesus Christ.',
+    icon: '🐣',
+    category: 'festival',
+  },
+  {
+    date: '2026-04-14',
+    name: 'Ambedkar Jayanti / Vaishakhi / Vishu',
+    type: 'Public Holiday',
+    description:
+      'A day associated with Ambedkar Jayanti and regional harvest and New Year celebrations.',
+    icon: '🌸',
+    category: 'festival',
+  },
+
+  {
+    date: '2026-05-01',
+    name: 'Labour Day / Maharashtra Day',
+    type: 'Public Holiday',
+    description:
+      'Labour Day honours workers and the contribution of labour to society.',
+    icon: '🛠️',
+    category: 'national',
+  },
+  {
+    date: '2026-05-01',
+    name: 'Buddha Purnima',
+    type: 'Public Holiday',
+    description:
+      'Buddha Purnima commemorates the birth of Gautama Buddha.',
+    icon: '🪷',
+    category: 'festival',
+  },
+  {
+    date: '2026-05-27',
+    name: 'Eid al-Adha (Bakrid)',
+    type: 'Public Holiday',
+    description:
+      'Eid al-Adha is an important Islamic festival commemorating sacrifice and devotion.',
+    icon: '🌙',
+    category: 'festival',
+  },
+  {
+    date: '2026-05-31',
+    name: 'Buddha Purnima',
+    type: 'Public Holiday',
+    description:
+      'Buddha Purnima commemorates the birth, enlightenment and passing of Gautama Buddha.',
+    icon: '🪷',
+    category: 'festival',
+  },
+
+  {
+    date: '2026-06-26',
+    name: 'Muharram (Ashura)',
+    type: 'Public Holiday',
+    description:
+      'Muharram is an important occasion in the Islamic calendar.',
+    icon: '🌙',
+    category: 'festival',
+  },
+
+  {
+    date: '2026-08-15',
+    name: 'Independence Day',
+    type: 'Public Holiday',
+    description:
+      'India celebrates its independence on August 15.',
+    icon: '🇮🇳',
+    category: 'national',
+  },
+  {
+    date: '2026-08-15',
+    name: 'Parsi New Year (Shahenshahi)',
+    type: 'Public Holiday',
+    description:
+      'Parsi New Year according to the Shahenshahi calendar.',
+    icon: '🌺',
+    category: 'festival',
+  },
+  {
+    date: '2026-08-26',
+    name: 'Id-E-Milad',
+    type: 'Public Holiday',
+    description:
+      'Id-E-Milad marks the birth anniversary of Prophet Muhammad.',
+    icon: '🌙',
+    category: 'festival',
+  },
+
+  {
+    date: '2026-09-14',
+    name: 'Ganesh Chaturthi',
+    type: 'Public Holiday',
+    description:
+      'Ganesh Chaturthi celebrates the birth of Lord Ganesha.',
+    icon: '🐘',
+    category: 'festival',
+  },
+
+  {
+    date: '2026-10-02',
+    name: 'Mahatma Gandhi Jayanti',
+    type: 'Public Holiday',
+    description:
+      'Birth anniversary of Mahatma Gandhi.',
+    icon: '🕊️',
+    category: 'national',
+  },
+  {
+    date: '2026-10-20',
+    name: 'Dasara / Vijayadashami',
+    type: 'Public Holiday',
+    description:
+      'Dasara, also known as Vijayadashami, marks the victory of good over evil.',
+    icon: '🏹',
+    category: 'festival',
+  },
+
+  {
+    date: '2026-11-08',
+    name: 'Diwali Amavasya (Laxmi Pujan)',
+    type: 'Public Holiday',
+    description:
+      'Diwali Amavasya and Laxmi Pujan celebrate light, prosperity and the triumph of good over evil.',
+    icon: '🪔',
+    category: 'festival',
+  },
+  {
+    date: '2026-11-10',
+    name: 'Diwali (Bali Pratipada)',
+    type: 'Public Holiday',
+    description:
+      'Bali Pratipada is celebrated during the Diwali festival.',
+    icon: '🪔',
+    category: 'festival',
+  },
+  {
+    date: '2026-11-24',
+    name: 'Guru Nanak Jayanti',
+    type: 'Public Holiday',
+    description:
+      'Birth anniversary of Guru Nanak Dev Ji.',
+    icon: '☬',
+    category: 'festival',
+  },
+
+  {
+    date: '2026-12-25',
+    name: 'Christmas',
+    type: 'Public Holiday',
+    description:
+      'Christmas celebrates the birth of Jesus Christ.',
+    icon: '🎄',
+    category: 'festival',
+  },
+];
+
+const WEEK_DAYS = [
+  'Sun',
+  'Mon',
+  'Tue',
+  'Wed',
+  'Thu',
+  'Fri',
+  'Sat',
+];
+
+/* =========================================================
+   DATE HELPERS
+========================================================= */
+
+function formatDateKey(date) {
+  const year = date.getFullYear();
+
+  const month = String(
+    date.getMonth() + 1
+  ).padStart(2, '0');
+
+  const day = String(
+    date.getDate()
+  ).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
+
+function formatLongDate(dateString) {
+  const date = new Date(
+    `${dateString}T00:00:00`
+  );
+
+  return date.toLocaleDateString(
+    'en-IN',
+    {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }
+  );
+}
+
+function getMonthStart(date) {
+  return new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    1
+  );
+}
+
+function getCalendarDays(currentDate) {
+  const firstDay =
+    getMonthStart(currentDate);
+
+  const startDay =
+    firstDay.getDay();
+
+  const calendarStart =
+    new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth(),
+      1 - startDay
+    );
+
+  return Array.from(
+    { length: 42 },
+    (_, index) => {
+      const day =
+        new Date(calendarStart);
+
+      day.setDate(
+        calendarStart.getDate() +
+          index
+      );
+
+      return day;
+    }
+  );
+}
+
+/* =========================================================
+   HOLIDAY THEME
+========================================================= */
+
+function getHolidayTheme(holiday) {
+  const name =
+    holiday.name.toLowerCase();
+
+  if (
+    name.includes('ganesh')
+  ) {
+    return {
+      accent: '#f97316',
+      soft: '#fff7ed',
+      darkSoft: '#431407',
+      glow:
+        'rgba(249,115,22,0.30)',
+      background:
+        'linear-gradient(135deg,#fff7ed 0%,#ffedd5 48%,#fed7aa 100%)',
+      pattern: '🐘',
+      label: 'Ganesh Festival',
+    };
+  }
+
+  if (
+    name.includes('diwali') ||
+    name.includes('laxmi')
+  ) {
+    return {
+      accent: '#eab308',
+      soft: '#fefce8',
+      darkSoft: '#422006',
+      glow:
+        'rgba(234,179,8,0.32)',
+      background:
+        'linear-gradient(135deg,#fffdf0 0%,#fef3c7 50%,#fde68a 100%)',
+      pattern: '🪔',
+      label: 'Festival of Lights',
+    };
+  }
+
+  if (
+    name.includes('holi')
+  ) {
+    return {
+      accent: '#ec4899',
+      soft: '#fdf2f8',
+      darkSoft: '#500724',
+      glow:
+        'rgba(236,72,153,0.30)',
+      background:
+        'linear-gradient(135deg,#fdf2f8,#fce7f3,#f5d0fe)',
+      pattern: '🎨',
+      label: 'Festival of Colours',
+    };
+  }
+
+  if (
+    name.includes('eid') ||
+    name.includes('milad') ||
+    name.includes('muharram') ||
+    name.includes('ramzan')
+  ) {
+    return {
+      accent: '#10b981',
+      soft: '#ecfdf5',
+      darkSoft: '#022c22',
+      glow:
+        'rgba(16,185,129,0.30)',
+      background:
+        'linear-gradient(135deg,#ecfdf5,#d1fae5,#ccfbf1)',
+      pattern: '🌙',
+      label: 'Islamic Festival',
+    };
+  }
+
+  if (
+    name.includes('christmas')
+  ) {
+    return {
+      accent: '#dc2626',
+      soft: '#fef2f2',
+      darkSoft: '#450a0a',
+      glow:
+        'rgba(220,38,38,0.30)',
+      background:
+        'linear-gradient(135deg,#fff7f7,#fee2e2,#dcfce7)',
+      pattern: '🎄',
+      label: 'Christmas',
+    };
+  }
+
+  if (
+    name.includes('good friday') ||
+    name.includes('easter')
+  ) {
+    return {
+      accent: '#3b82f6',
+      soft: '#eff6ff',
+      darkSoft: '#172554',
+      glow:
+        'rgba(59,130,246,0.30)',
+      background:
+        'linear-gradient(135deg,#eff6ff,#dbeafe,#e0e7ff)',
+      pattern: '✝️',
+      label: 'Christian Festival',
+    };
+  }
+
+  if (
+    name.includes('shiv') ||
+    name.includes('mahadev')
+  ) {
+    return {
+      accent: '#8b5cf6',
+      soft: '#f5f3ff',
+      darkSoft: '#2e1065',
+      glow:
+        'rgba(139,92,246,0.30)',
+      background:
+        'linear-gradient(135deg,#f5f3ff,#ede9fe,#ddd6fe)',
+      pattern: '🔱',
+      label: 'Hindu Festival',
+    };
+  }
+
+  if (
+    name.includes('makar') ||
+    name.includes('pongal') ||
+    name.includes('lohri') ||
+    name.includes('sankranti')
+  ) {
+    return {
+      accent: '#d97706',
+      soft: '#fffbeb',
+      darkSoft: '#451a03',
+      glow:
+        'rgba(217,119,6,0.30)',
+      background:
+        'linear-gradient(135deg,#fffbeb,#fef3c7,#fed7aa)',
+      pattern: '🌾',
+      label: 'Harvest Festival',
+    };
+  }
+
+  if (
+    name.includes('buddha')
+  ) {
+    return {
+      accent: '#14b8a6',
+      soft: '#f0fdfa',
+      darkSoft: '#042f2e',
+      glow:
+        'rgba(20,184,166,0.30)',
+      background:
+        'linear-gradient(135deg,#f0fdfa,#ccfbf1,#d1fae5)',
+      pattern: '🪷',
+      label: 'Buddha Purnima',
+    };
+  }
+
+  if (
+    name.includes('guru nanak')
+  ) {
+    return {
+      accent: '#f59e0b',
+      soft: '#fffbeb',
+      darkSoft: '#451a03',
+      glow:
+        'rgba(245,158,11,0.30)',
+      background:
+        'linear-gradient(135deg,#fffbeb,#fef3c7,#fde68a)',
+      pattern: '☬',
+      label: 'Sikh Festival',
+    };
+  }
+
+  if (
+    name.includes('basant') ||
+    name.includes('vasant')
+  ) {
+    return {
+      accent: '#eab308',
+      soft: '#fefce8',
+      darkSoft: '#422006',
+      glow:
+        'rgba(234,179,8,0.30)',
+      background:
+        'linear-gradient(135deg,#fefce8,#fef9c3,#fef08a)',
+      pattern: '🌼',
+      label: 'Spring Festival',
+    };
+  }
+
+  if (
+    holiday.category === 'national'
+  ) {
+    return {
+      accent: '#2563eb',
+      soft: '#eff6ff',
+      darkSoft: '#172554',
+      glow:
+        'rgba(37,99,235,0.30)',
+      background:
+        'linear-gradient(135deg,#eff6ff,#dbeafe,#e0f2fe)',
+      pattern: '🇮🇳',
+      label: 'National Holiday',
+    };
+  }
+
+  return {
+    accent: '#22c55e',
+    soft: '#ecfdf5',
+    darkSoft: '#022c22',
+    glow:
+      'rgba(34,197,94,0.30)',
+    background:
+      'linear-gradient(135deg,#ecfdf5,#d1fae5,#ccfbf1)',
+    pattern: holiday.icon,
+    label: 'Public Holiday',
+  };
+}
+
+/* =========================================================
+   FESTIVAL ARTWORK
+========================================================= */
+
+function FestivalArtwork({
+  holiday,
+  theme,
+  isDark,
+}) {
+  return (
+    <div
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '110px',
+        overflow: 'hidden',
+        borderRadius: '22px',
+        background: isDark
+          ? `linear-gradient(135deg,${theme.darkSoft},#0f172a)`
+          : theme.background,
+        border: `1px solid ${theme.accent}35`,
+        boxShadow:
+          `inset 0 1px 0 rgba(255,255,255,0.5),
+           0 15px 40px ${theme.glow}`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      {/* Decorative circles */}
+
+      <div
+        style={{
+          position: 'absolute',
+          width: '150px',
+          height: '150px',
+          borderRadius: '50%',
+          top: '-70px',
+          left: '-45px',
+          background:
+            `${theme.accent}18`,
+          filter: 'blur(5px)',
+        }}
+      />
+
+      <div
+        style={{
+          position: 'absolute',
+          width: '180px',
+          height: '180px',
+          borderRadius: '50%',
+          bottom: '-105px',
+          right: '-55px',
+          background:
+            `${theme.accent}20`,
+          filter: 'blur(5px)',
+        }}
+      />
+
+      {/* Decorative dots */}
+
+      <span
+        style={{
+          position: 'absolute',
+          top: '22px',
+          left: '28%',
+          fontSize: '16px',
+          opacity: 0.5,
+        }}
+      >
+        ✦
+      </span>
+
+      <span
+        style={{
+          position: 'absolute',
+          top: '45px',
+          right: '22%',
+          fontSize: '12px',
+          opacity: 0.45,
+        }}
+      >
+        ✧
+      </span>
+
+      <span
+        style={{
+          position: 'absolute',
+          bottom: '25px',
+          left: '20%',
+          fontSize: '13px',
+          opacity: 0.4,
+        }}
+      >
+        •
+      </span>
+
+      {/* Large festival artwork */}
+
+      <div
+        style={{
+          position: 'relative',
+          zIndex: 2,
+          width: '72px',
+          height: '72px',
+          borderRadius: '50%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background:
+            isDark
+              ? 'rgba(255,255,255,0.08)'
+              : 'rgba(255,255,255,0.62)',
+          border:
+            `1px solid ${theme.accent}45`,
+          boxShadow:
+            `0 15px 35px ${theme.glow}`,
+          backdropFilter:
+            'blur(8px)',
+          WebkitBackdropFilter:
+            'blur(8px)',
+        }}
+      >
+        <span
+          style={{
+            fontSize:
+              holiday.name
+                .toLowerCase()
+                .includes('ganesh')
+                ? '45px'
+                : '40px',
+            lineHeight: 1,
+            filter:
+              'drop-shadow(0 5px 10px rgba(0,0,0,0.12))',
+          }}
+        >
+          {theme.pattern}
+        </span>
+      </div>
+
+      {/* Large faded artwork */}
+
+      <div
+        style={{
+          position: 'absolute',
+          right: '-15px',
+          bottom: '-35px',
+          fontSize: '115px',
+          opacity: 0.10,
+          transform: 'rotate(-8deg)',
+          pointerEvents: 'none',
+        }}
+      >
+        {theme.pattern}
+      </div>
+
+      {/* Festival label */}
+
+      <div
+        style={{
+          position: 'absolute',
+          left: '18px',
+          bottom: '15px',
+          padding:
+            '6px 10px',
+          borderRadius: '999px',
+          background:
+            isDark
+              ? 'rgba(255,255,255,0.08)'
+              : 'rgba(255,255,255,0.60)',
+          border:
+            `1px solid ${theme.accent}25`,
+          color: isDark
+            ? '#e2e8f0'
+            : '#475569',
+          fontSize: '10px',
+          fontWeight: '800',
+          letterSpacing: '0.4px',
+        }}
+      >
+        {theme.label}
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   COMPONENT
+========================================================= */
 
 export default function HolidayCalendar() {
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
-  
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [mounted, setMounted] = useState(false);
+  const { resolvedTheme } =
+    useTheme();
+
+  const isDark =
+    resolvedTheme === 'dark';
+
+  const [
+    currentDate,
+    setCurrentDate,
+  ] = useState(new Date());
+
+  const [
+    mounted,
+    setMounted,
+  ] = useState(false);
+
+  const [
+    selectedHoliday,
+    setSelectedHoliday,
+  ] = useState(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  if (!mounted) return null;
+  /* =======================================================
+     ESC KEY
+  ======================================================= */
 
-  const currentYear = currentDate.getFullYear();
-  const currentMonth = currentDate.getMonth();
+  useEffect(() => {
+    if (!selectedHoliday) {
+      return;
+    }
 
-  const holidays = getHolidaysForYear(currentYear);
+    const handleKeyDown =
+      (event) => {
+        if (event.key === 'Escape') {
+          setSelectedHoliday(null);
+        }
+      };
 
-  const getDaysInMonth = (year, month) => {
-    return new Date(year, month + 1, 0).getDate();
-  };
+    document.addEventListener(
+      'keydown',
+      handleKeyDown
+    );
 
-  const getFirstDayOfMonth = (year, month) => {
-    return new Date(year, month, 1).getDay();
-  };
+    return () => {
+      document.removeEventListener(
+        'keydown',
+        handleKeyDown
+      );
+    };
+  }, [selectedHoliday]);
 
-  const daysInMonth = getDaysInMonth(currentYear, currentMonth);
-  const firstDay = getFirstDayOfMonth(currentYear, currentMonth);
+  const calendarDays =
+    useMemo(
+      () =>
+        getCalendarDays(
+          currentDate
+        ),
+      [currentDate]
+    );
 
-  const prevMonth = () => {
-    setCurrentDate(new Date(currentYear, currentMonth - 1, 1));
-  };
+  const monthName =
+    currentDate.toLocaleDateString(
+      'en-IN',
+      {
+        month: 'long',
+        year: 'numeric',
+      }
+    );
 
-  const nextMonth = () => {
-    setCurrentDate(new Date(currentYear, currentMonth + 1, 1));
-  };
+  const todayKey =
+    formatDateKey(new Date());
+
+  const holidaysByDate =
+    useMemo(() => {
+      const grouped = {};
+
+      HOLIDAYS_2026.forEach(
+        (holiday) => {
+          if (
+            !grouped[holiday.date]
+          ) {
+            grouped[holiday.date] =
+              [];
+          }
+
+          grouped[
+            holiday.date
+          ].push(holiday);
+        }
+      );
+
+      return grouped;
+    }, []);
+
+  /* =======================================================
+     MONTH NAVIGATION
+  ======================================================= */
+
+  const goToPreviousMonth =
+    () => {
+      setCurrentDate(
+        new Date(
+          currentDate.getFullYear(),
+          currentDate.getMonth() - 1,
+          1
+        )
+      );
+    };
+
+  const goToNextMonth =
+    () => {
+      setCurrentDate(
+        new Date(
+          currentDate.getFullYear(),
+          currentDate.getMonth() + 1,
+          1
+        )
+      );
+    };
 
   const goToToday = () => {
     setCurrentDate(new Date());
   };
 
-  const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
+  /* =======================================================
+     MODAL
+  ======================================================= */
 
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const openHoliday =
+    (holiday) => {
+      setSelectedHoliday(
+        holiday
+      );
+    };
 
-  // Build calendar grid
-  const gridDays = [];
-  
-  // Previous month trailing days
-  const prevMonthDays = getDaysInMonth(currentYear, currentMonth - 1);
-  for (let i = 0; i < firstDay; i++) {
-    gridDays.push({
-      day: prevMonthDays - firstDay + i + 1,
-      isCurrentMonth: false,
-      monthOffset: -1
-    });
-  }
-  
-  // Current month days
-  for (let i = 1; i <= daysInMonth; i++) {
-    gridDays.push({
-      day: i,
-      isCurrentMonth: true,
-      monthOffset: 0
-    });
-  }
-  
-  // Next month leading days (to fill 42 cells grid = 6 rows)
-  const remainingCells = 42 - gridDays.length;
-  for (let i = 1; i <= remainingCells; i++) {
-    gridDays.push({
-      day: i,
-      isCurrentMonth: false,
-      monthOffset: 1
-    });
-  }
-
-  const isToday = (day, monthOffset) => {
-    const today = new Date();
-    const cellDate = new Date(currentYear, currentMonth + monthOffset, day);
-    return (
-      today.getDate() === cellDate.getDate() &&
-      today.getMonth() === cellDate.getMonth() &&
-      today.getFullYear() === cellDate.getFullYear()
-    );
+  const closeHoliday = () => {
+    setSelectedHoliday(null);
   };
 
-  const getHolidayForDay = (day, monthOffset) => {
-    const cellDate = new Date(currentYear, currentMonth + monthOffset, day);
-    // Format YYYY-MM-DD
-    const dateStr = `${cellDate.getFullYear()}-${String(cellDate.getMonth() + 1).padStart(2, '0')}-${String(cellDate.getDate()).padStart(2, '0')}`;
-    return holidays.find(h => h.date === dateStr);
-  };
+  /* =======================================================
+     GOOGLE CALENDAR
+  ======================================================= */
+
+  const addToGoogleCalendar =
+    (holiday) => {
+      const startDate =
+        holiday.date.replaceAll(
+          '-',
+          ''
+        );
+
+      const start = new Date(
+        `${holiday.date}T00:00:00`
+      );
+
+      const nextDay =
+        new Date(start);
+
+      nextDay.setDate(
+        nextDay.getDate() + 1
+      );
+
+      const endDate =
+        formatDateKey(
+          nextDay
+        ).replaceAll(
+          '-',
+          ''
+        );
+
+      const title =
+        encodeURIComponent(
+          holiday.name
+        );
+
+      const details =
+        encodeURIComponent(
+          `${holiday.description}\n\nHoliday Type: ${holiday.type}\nLocation: India`
+        );
+
+      const location =
+        encodeURIComponent(
+          'India'
+        );
+
+      const googleCalendarUrl =
+        `https://calendar.google.com/calendar/render?action=TEMPLATE` +
+        `&text=${title}` +
+        `&dates=${startDate}/${endDate}` +
+        `&details=${details}` +
+        `&location=${location}`;
+
+      window.open(
+        googleCalendarUrl,
+        '_blank',
+        'noopener,noreferrer'
+      );
+    };
+
+  if (!mounted) {
+    return null;
+  }
+
+  const modalTheme =
+    selectedHoliday
+      ? getHolidayTheme(
+          selectedHoliday
+        )
+      : null;
 
   return (
-    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', boxSizing: 'border-box' }}>
-      <div 
+    <>
+      {/* ===================================================
+          CALENDAR
+      =================================================== */}
+
+      <div
         style={{
           width: '100%',
-          maxWidth: '1000px',
           height: '100%',
-          maxHeight: '850px',
-          margin: '0 auto',
-          background: isDark ? '#0A0E17' : '#ffffff',
-          borderRadius: '16px',
-          border: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : '#e2e8f0'}`,
-          padding: '16px',
-          boxShadow: isDark ? '0 4px 6px rgba(0,0,0,0.1)' : '0 4px 6px rgba(0,0,0,0.02)',
           display: 'flex',
           flexDirection: 'column',
-          flex: 1,
-          minHeight: 0
+          background: isDark
+            ? '#0f172a'
+            : '#ffffff',
+          color: isDark
+            ? '#f8fafc'
+            : '#0f172a',
+          borderRadius: '16px',
+          border: isDark
+            ? '1px solid #1e293b'
+            : '1px solid #e2e8f0',
+          overflow: 'hidden',
+          boxSizing: 'border-box',
         }}
       >
-        
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexShrink: 0, gap: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <h2 style={{ 
-              fontSize: '24px', 
-              fontWeight: '700', 
-              color: isDark ? '#ffffff' : '#0f172a',
-              margin: 0
-            }}>
-              {monthNames[currentMonth]} {currentYear}
-            </h2>
-          </div>
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button 
-              onClick={goToToday}
+        {/* Calendar Header */}
+
+        <div
+          style={{
+            minHeight: '68px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent:
+              'space-between',
+            padding:
+              '12px 18px',
+            borderBottom:
+              isDark
+                ? '1px solid #1e293b'
+                : '1px solid #e2e8f0',
+            flexShrink: 0,
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              flexWrap: 'wrap',
+            }}
+          >
+            {/* Previous */}
+
+            <button
+              onClick={
+                goToPreviousMonth
+              }
+              type="button"
+              aria-label="Previous month"
               style={{
-                padding: '8px 16px',
-                borderRadius: '8px',
-                border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : '#e2e8f0'}`,
-                background: 'transparent',
-                color: isDark ? '#cbd5e1' : '#475569',
+                width: '36px',
+                height: '36px',
+                borderRadius: '9px',
+                border: isDark
+                  ? '1px solid #334155'
+                  : '1px solid #cbd5e1',
+                background: isDark
+                  ? '#1e293b'
+                  : '#ffffff',
+                color: isDark
+                  ? '#f8fafc'
+                  : '#334155',
                 cursor: 'pointer',
-                fontWeight: '600',
-                fontSize: '14px',
-                transition: 'all 0.2s'
+                fontSize: '22px',
               }}
-              onMouseEnter={(e) => e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.05)' : '#f8fafc'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+            >
+              ‹
+            </button>
+
+            {/* Next */}
+
+            <button
+              onClick={
+                goToNextMonth
+              }
+              type="button"
+              aria-label="Next month"
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '9px',
+                border: isDark
+                  ? '1px solid #334155'
+                  : '1px solid #cbd5e1',
+                background: isDark
+                  ? '#1e293b'
+                  : '#ffffff',
+                color: isDark
+                  ? '#f8fafc'
+                  : '#334155',
+                cursor: 'pointer',
+                fontSize: '22px',
+              }}
+            >
+              ›
+            </button>
+
+            {/* Today */}
+
+            <button
+              onClick={goToToday}
+              type="button"
+              style={{
+                height: '36px',
+                padding: '0 14px',
+                borderRadius: '9px',
+                border: isDark
+                  ? '1px solid #334155'
+                  : '1px solid #cbd5e1',
+                background: isDark
+                  ? '#1e293b'
+                  : '#ffffff',
+                color: isDark
+                  ? '#f8fafc'
+                  : '#334155',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: '700',
+              }}
             >
               Today
             </button>
-            
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <button 
-                onClick={prevMonth}
-                style={{
-                  width: '36px', height: '36px',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  borderRadius: '50%',
-                  border: 'none',
-                  background: 'transparent',
-                  color: isDark ? '#cbd5e1' : '#475569',
-                  cursor: 'pointer',
-                  transition: 'background 0.2s'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.05)' : '#f8fafc'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-              >
-                <ChevronLeft size={20} />
-              </button>
-              
-              <button 
-                onClick={nextMonth}
-                style={{
-                  width: '36px', height: '36px',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  borderRadius: '50%',
-                  border: 'none',
-                  background: 'transparent',
-                  color: isDark ? '#cbd5e1' : '#475569',
-                  cursor: 'pointer',
-                  transition: 'background 0.2s'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.05)' : '#f8fafc'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-              >
-                <ChevronRight size={20} />
-              </button>
-            </div>
+
+            <h2
+              style={{
+                margin:
+                  '0 0 0 4px',
+                fontSize: '21px',
+                fontWeight: '800',
+              }}
+            >
+              {monthName}
+            </h2>
+          </div>
+
+          {/* Legend */}
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              fontSize: '13px',
+              color: isDark
+                ? '#94a3b8'
+                : '#64748b',
+            }}
+          >
+            <span
+              style={{
+                width: '9px',
+                height: '9px',
+                borderRadius: '50%',
+                background:
+                  '#22c55e',
+              }}
+            />
+
+            Public Holiday
           </div>
         </div>
 
-        {/* Calendar Grid */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, minHeight: 0 }}>
-          
-          {/* Days Header */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px', flexShrink: 0 }}>
-            {dayNames.map((dayName, idx) => (
-              <div 
-                key={dayName}
+        {/* =================================================
+            WEEK HEADER
+        ================================================= */}
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns:
+              'repeat(7,minmax(0,1fr))',
+            borderBottom:
+              isDark
+                ? '1px solid #1e293b'
+                : '1px solid #e2e8f0',
+          }}
+        >
+          {WEEK_DAYS.map(
+            (day) => (
+              <div
+                key={day}
                 style={{
-                  padding: '8px',
-                  textAlign: 'center',
-                  fontSize: '13px',
+                  height: '38px',
+                  display: 'flex',
+                  alignItems:
+                    'center',
+                  justifyContent:
+                    'center',
+                  fontSize: '12px',
                   fontWeight: '700',
-                  color: isDark ? '#94a3b8' : '#64748b',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px'
+                  color: isDark
+                    ? '#94a3b8'
+                    : '#64748b',
+                  borderRight:
+                    isDark
+                      ? '1px solid #1e293b'
+                      : '1px solid #e2e8f0',
                 }}
               >
-                {dayName}
+                {day}
               </div>
-            ))}
-          </div>
-          
-          {/* Days Grid */}
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(7, 1fr)', 
-            gridTemplateRows: 'repeat(6, minmax(0, 1fr))',
-            gap: '6px',
+            )
+          )}
+        </div>
+
+        {/* =================================================
+            CALENDAR GRID
+        ================================================= */}
+
+        <div
+          style={{
             flex: 1,
-            minHeight: 0
-          }}>
-            {gridDays.map((cell, idx) => {
-              const today = isToday(cell.day, cell.monthOffset);
-              const holiday = getHolidayForDay(cell.day, cell.monthOffset);
-              
+            minHeight: 0,
+            display: 'grid',
+            gridTemplateColumns:
+              'repeat(7,minmax(0,1fr))',
+            gridTemplateRows:
+              'repeat(6,minmax(0,1fr))',
+          }}
+        >
+          {calendarDays.map(
+            (day) => {
+              const dateKey =
+                formatDateKey(day);
+
+              const holidays =
+                holidaysByDate[
+                  dateKey
+                ] || [];
+
+              const isCurrentMonth =
+                day.getMonth() ===
+                currentDate.getMonth();
+
+              const isToday =
+                dateKey ===
+                todayKey;
+
               return (
-                <div 
-                  key={idx}
+                <div
+                  key={dateKey}
                   style={{
-                    border: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : '#e2e8f0'}`,
-                    borderRadius: '8px',
-                    padding: '4px 6px',
-                    background: cell.isCurrentMonth 
-                      ? (isDark ? '#111827' : '#ffffff')
-                      : (isDark ? '#0A0E17' : '#f8fafc'),
-                    opacity: cell.isCurrentMonth ? 1 : 0.5,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '2px',
-                    transition: 'all 0.2s',
-                    overflow: 'hidden'
+                    position:
+                      'relative',
+                    minWidth: 0,
+                    minHeight: 0,
+                    padding: '7px',
+                    borderRight:
+                      isDark
+                        ? '1px solid #1e293b'
+                        : '1px solid #e2e8f0',
+                    borderBottom:
+                      isDark
+                        ? '1px solid #1e293b'
+                        : '1px solid #e2e8f0',
+                    background:
+                      isToday
+                        ? isDark
+                          ? '#132e24'
+                          : '#f0fdf4'
+                        : isDark
+                        ? '#0f172a'
+                        : '#ffffff',
+                    opacity:
+                      isCurrentMonth
+                        ? 1
+                        : 0.45,
+                    overflow: 'hidden',
+                    boxSizing:
+                      'border-box',
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'center' }}>
-                    <div 
-                      style={{
-                        width: '24px',
-                        height: '24px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        borderRadius: '50%',
-                        fontSize: '12px',
-                        fontWeight: today ? '700' : '600',
-                        color: today 
-                          ? '#ffffff' 
-                          : (isDark ? '#e2e8f0' : '#334155'),
-                        background: today ? '#10b981' : 'transparent',
-                      }}
-                    >
-                      {cell.day}
-                    </div>
+                  {/* Date */}
+
+                  <div
+                    style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems:
+                        'center',
+                      justifyContent:
+                        'center',
+                      fontSize: '13px',
+                      fontWeight:
+                        isToday
+                          ? '800'
+                          : '600',
+                      background:
+                        isToday
+                          ? '#22c55e'
+                          : 'transparent',
+                      color: isToday
+                        ? '#ffffff'
+                        : isDark
+                        ? '#e2e8f0'
+                        : '#334155',
+                      marginBottom:
+                        '4px',
+                    }}
+                  >
+                    {day.getDate()}
                   </div>
-                  
-                  {/* Events Container */}
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px', overflow: 'hidden' }}>
-                    {holiday && (
-                      <div
-                        style={{
-                          background: `${holiday.color}15`,
-                          borderLeft: `3px solid ${holiday.color}`,
-                          color: isDark ? '#ffffff' : '#0f172a',
-                          padding: '2px 4px',
-                          borderRadius: '4px',
-                          fontSize: '10px',
-                          fontWeight: '600',
-                          lineHeight: 1.1,
-                          display: 'flex',
-                          alignItems: 'flex-start',
-                          gap: '4px',
-                          boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
-                        }}
-                      >
-                        <div style={{
-                          width: '5px',
-                          height: '5px',
-                          borderRadius: '50%',
-                          background: holiday.color,
-                          flexShrink: 0,
-                          marginTop: '3px'
-                        }} />
-                        <span style={{ 
-                          whiteSpace: 'normal', 
-                          wordBreak: 'break-word',
-                          display: 'block'
-                        }}>
-                          {holiday.name}
-                        </span>
-                      </div>
+
+                  {/* Holidays */}
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection:
+                        'column',
+                      gap: '4px',
+                      overflowY:
+                        'auto',
+                      maxHeight:
+                        'calc(100% - 34px)',
+                    }}
+                  >
+                    {holidays.map(
+                      (
+                        holiday,
+                        index
+                      ) => {
+                        const theme =
+                          getHolidayTheme(
+                            holiday
+                          );
+
+                        return (
+                          <button
+                            key={`${holiday.date}-${holiday.name}-${index}`}
+                            type="button"
+                            onClick={() =>
+                              openHoliday(
+                                holiday
+                              )
+                            }
+                            title={`View ${holiday.name}`}
+                            style={{
+                              width:
+                                '100%',
+                              textAlign:
+                                'left',
+                              border:
+                                'none',
+                              borderRadius:
+                                '7px',
+                              padding:
+                                '5px 7px',
+                              background:
+                                isDark
+                                  ? `${theme.accent}20`
+                                  : theme.soft,
+                              color:
+                                isDark
+                                  ? '#ffffff'
+                                  : '#166534',
+                              cursor:
+                                'pointer',
+                              fontSize:
+                                '11px',
+                              fontWeight:
+                                '700',
+                              lineHeight:
+                                '1.25',
+                              overflow:
+                                'hidden',
+                              textOverflow:
+                                'ellipsis',
+                              whiteSpace:
+                                'nowrap',
+                              transition:
+                                'all .2s ease',
+                            }}
+                            onMouseEnter={(
+                              e
+                            ) => {
+                              e.currentTarget.style.transform =
+                                'translateY(-1px)';
+
+                              e.currentTarget.style.boxShadow =
+                                `0 5px 15px ${theme.glow}`;
+                            }}
+                            onMouseLeave={(
+                              e
+                            ) => {
+                              e.currentTarget.style.transform =
+                                'translateY(0)';
+
+                              e.currentTarget.style.boxShadow =
+                                'none';
+                            }}
+                          >
+                            <span
+                              style={{
+                                display:
+                                  'inline-block',
+                                width:
+                                  '6px',
+                                height:
+                                  '6px',
+                                borderRadius:
+                                  '50%',
+                                background:
+                                  theme.accent,
+                                marginRight:
+                                  '5px',
+                              }}
+                            />
+
+                            {
+                              holiday.name
+                            }
+                          </button>
+                        );
+                      }
                     )}
                   </div>
                 </div>
               );
-            })}
-          </div>
-
+            }
+          )}
         </div>
       </div>
-    </div>
+
+      {/* =====================================================
+          HOLIDAY MODAL
+      ===================================================== */}
+
+      {selectedHoliday && (
+        <div
+          onClick={
+            closeHoliday
+          }
+          role="presentation"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            background:
+              'rgba(15,23,42,.58)',
+            backdropFilter:
+              'blur(9px)',
+            WebkitBackdropFilter:
+              'blur(9px)',
+            display: 'flex',
+            alignItems:
+              'center',
+            justifyContent:
+              'center',
+            padding: '20px',
+            boxSizing:
+              'border-box',
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="holiday-dialog-title"
+            onClick={(event) =>
+              event.stopPropagation()
+            }
+            style={{
+              position:
+                'relative',
+              width: '100%',
+              maxWidth:
+                '450px',
+              maxHeight:
+                'calc(100vh - 40px)',
+              overflowY:
+                'auto',
+
+              background:
+                isDark
+                  ? 'rgba(15,23,42,.92)'
+                  : 'rgba(255,255,255,.88)',
+
+              backdropFilter:
+                'blur(25px)',
+              WebkitBackdropFilter:
+                'blur(25px)',
+
+              border:
+                '1px solid rgba(255,255,255,.48)',
+
+              borderRadius:
+                '26px',
+
+              boxShadow:
+                `0 30px 80px ${modalTheme.glow},
+                 0 25px 70px rgba(15,23,42,.35)`,
+
+              color:
+                isDark
+                  ? '#f8fafc'
+                  : '#0f172a',
+
+              padding: '18px',
+
+              boxSizing:
+                'border-box',
+            }}
+          >
+            {/* =================================================
+                FESTIVAL ARTWORK
+            ================================================= */}
+
+            <FestivalArtwork
+              holiday={
+                selectedHoliday
+              }
+              theme={
+                modalTheme
+              }
+              isDark={
+                isDark
+              }
+            />
+
+            {/* =================================================
+                TITLE
+            ================================================= */}
+
+            <div
+              style={{
+                padding:
+                  '20px 4px 8px',
+              }}
+            >
+              <div
+                style={{
+                  display:
+                    'inline-flex',
+                  alignItems:
+                    'center',
+                  gap: '7px',
+                  padding:
+                    '6px 11px',
+                  borderRadius:
+                    '999px',
+                  background:
+                    isDark
+                      ? `${modalTheme.accent}20`
+                      : `${modalTheme.accent}12`,
+                  color:
+                    modalTheme.accent,
+                  fontSize:
+                    '11px',
+                  fontWeight:
+                    '800',
+                  textTransform:
+                    'uppercase',
+                  letterSpacing:
+                    '.5px',
+                }}
+              >
+                <span
+                  style={{
+                    width: '7px',
+                    height: '7px',
+                    borderRadius:
+                      '50%',
+                    background:
+                      modalTheme.accent,
+                  }}
+                />
+
+                {selectedHoliday.type}
+              </div>
+
+              <h2
+                id="holiday-dialog-title"
+                style={{
+                  margin:
+                    '12px 0 0',
+                  fontSize:
+                    '28px',
+                  lineHeight:
+                    '1.15',
+                  fontWeight:
+                    '850',
+                  letterSpacing:
+                    '-.6px',
+                }}
+              >
+                {selectedHoliday.name}
+              </h2>
+
+              <div
+                style={{
+                  marginTop:
+                    '8px',
+                  fontSize:
+                    '14px',
+                  color:
+                    isDark
+                      ? '#cbd5e1'
+                      : '#64748b',
+                  fontWeight:
+                    '500',
+                }}
+              >
+                {formatLongDate(
+                  selectedHoliday.date
+                )}
+              </div>
+            </div>
+
+            {/* =================================================
+                DETAILS
+            ================================================= */}
+
+            <div
+              style={{
+                marginTop:
+                  '10px',
+                borderRadius:
+                  '18px',
+                background:
+                  isDark
+                    ? 'rgba(255,255,255,.055)'
+                    : 'rgba(255,255,255,.70)',
+                border:
+                  isDark
+                    ? '1px solid rgba(255,255,255,.08)'
+                    : '1px solid rgba(148,163,184,.18)',
+                padding:
+                  '5px 16px',
+              }}
+            >
+              {/* All Day */}
+
+              <div
+                style={{
+                  display:
+                    'flex',
+                  alignItems:
+                    'center',
+                  gap: '13px',
+                  padding:
+                    '14px 0',
+                }}
+              >
+                <div
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius:
+                      '12px',
+                    display:
+                      'flex',
+                    alignItems:
+                      'center',
+                    justifyContent:
+                      'center',
+                    background:
+                      isDark
+                        ? 'rgba(59,130,246,.15)'
+                        : '#eff6ff',
+                    fontSize:
+                      '19px',
+                  }}
+                >
+                  📅
+                </div>
+
+                <div>
+                  <div
+                    style={{
+                      fontSize:
+                        '14px',
+                      fontWeight:
+                        '800',
+                    }}
+                  >
+                    All day
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize:
+                        '12px',
+                      marginTop:
+                        '2px',
+                      color:
+                        isDark
+                          ? '#94a3b8'
+                          : '#64748b',
+                    }}
+                  >
+                    Public holiday
+                  </div>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  height: '1px',
+                  background:
+                    isDark
+                      ? 'rgba(255,255,255,.08)'
+                      : '#e2e8f0',
+                }}
+              />
+
+              {/* Location */}
+
+              <div
+                style={{
+                  display:
+                    'flex',
+                  alignItems:
+                    'center',
+                  gap: '13px',
+                  padding:
+                    '14px 0',
+                }}
+              >
+                <div
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius:
+                      '12px',
+                    display:
+                      'flex',
+                    alignItems:
+                      'center',
+                    justifyContent:
+                      'center',
+                    background:
+                      isDark
+                        ? 'rgba(34,197,94,.15)'
+                        : '#ecfdf5',
+                    fontSize:
+                      '19px',
+                  }}
+                >
+                  📍
+                </div>
+
+                <div>
+                  <div
+                    style={{
+                      fontSize:
+                        '14px',
+                      fontWeight:
+                        '800',
+                    }}
+                  >
+                    India
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize:
+                        '12px',
+                      marginTop:
+                        '2px',
+                      color:
+                        isDark
+                          ? '#94a3b8'
+                          : '#64748b',
+                    }}
+                  >
+                    Holiday location
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* =================================================
+                DESCRIPTION
+            ================================================= */}
+
+            <div
+              style={{
+                marginTop:
+                  '14px',
+                padding:
+                  '16px 17px',
+                borderRadius:
+                  '16px',
+                background:
+                  isDark
+                    ? `${modalTheme.accent}12`
+                    : modalTheme.soft,
+                border:
+                  `1px solid ${modalTheme.accent}20`,
+                color:
+                  isDark
+                    ? '#cbd5e1'
+                    : '#475569',
+                fontSize:
+                  '13px',
+                lineHeight:
+                  '1.6',
+              }}
+            >
+              <div
+                style={{
+                  display:
+                    'flex',
+                  alignItems:
+                    'center',
+                  gap: '7px',
+                  marginBottom:
+                    '7px',
+                  color:
+                    isDark
+                      ? '#f8fafc'
+                      : '#0f172a',
+                  fontWeight:
+                    '800',
+                  fontSize:
+                    '12px',
+                }}
+              >
+                <span>
+                  ✨
+                </span>
+
+                About this holiday
+              </div>
+
+              {
+                selectedHoliday.description
+              }
+            </div>
+
+            {/* =================================================
+                BUTTONS
+            ================================================= */}
+
+            <div
+              style={{
+                display:
+                  'flex',
+                gap: '10px',
+                marginTop:
+                  '18px',
+              }}
+            >
+              {/* Google Calendar */}
+
+              <button
+                type="button"
+                onClick={() =>
+                  addToGoogleCalendar(
+                    selectedHoliday
+                  )
+                }
+                style={{
+                  flex: 1,
+                  height: '48px',
+                  border:
+                    'none',
+                  borderRadius:
+                    '13px',
+                  background:
+                    '#22c55e',
+                  color:
+                    '#ffffff',
+                  cursor:
+                    'pointer',
+                  fontSize:
+                    '13px',
+                  fontWeight:
+                    '800',
+                  boxShadow:
+                    '0 8px 20px rgba(34,197,94,.25)',
+                  transition:
+                    'all .2s ease',
+                }}
+                onMouseEnter={(
+                  e
+                ) => {
+                  e.currentTarget.style.transform =
+                    'translateY(-1px)';
+
+                  e.currentTarget.style.boxShadow =
+                    '0 12px 25px rgba(34,197,94,.35)';
+                }}
+                onMouseLeave={(
+                  e
+                ) => {
+                  e.currentTarget.style.transform =
+                    'translateY(0)';
+
+                  e.currentTarget.style.boxShadow =
+                    '0 8px 20px rgba(34,197,94,.25)';
+                }}
+              >
+                📅&nbsp; Add to Google Calendar
+              </button>
+
+              {/* ONLY CLOSE BUTTON */}
+
+              <button
+                type="button"
+                onClick={
+                  closeHoliday
+                }
+                style={{
+                  height: '48px',
+                  padding:
+                    '0 22px',
+                  borderRadius:
+                    '13px',
+                  border:
+                    isDark
+                      ? '1px solid #475569'
+                      : '1px solid #cbd5e1',
+                  background:
+                    isDark
+                      ? 'rgba(255,255,255,.06)'
+                      : '#ffffff',
+                  color:
+                    isDark
+                      ? '#f8fafc'
+                      : '#334155',
+                  cursor:
+                    'pointer',
+                  fontSize:
+                    '13px',
+                  fontWeight:
+                    '700',
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

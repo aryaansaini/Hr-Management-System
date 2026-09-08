@@ -9,6 +9,12 @@ export const checkIn = (remarks = '') =>
 export const checkOut = (remarks = '') =>
   api.post('/api/attendance/check-out', { remarks });
 
+export const deleteMyAttendance = (id) =>
+  api.delete(`/api/attendance/${id}`);
+
+export const clearAllMyAttendance = () =>
+  api.delete('/api/attendance/my/clear-all');
+
 export const getMyLeaves = (page = 0, size = 10) =>
   api.get(`/api/leaves/my?page=${page}&size=${size}`);
 

@@ -78,7 +78,31 @@ public class AttendanceController {
                         PageRequest.of(page, size, Sort.by("date").descending()))));
     }
 
-    @GetMapping("/my/detailed-report")
+   
+    @DeleteMapping("/{attendanceId}")
+@Operation(summary = "Delete my attendance record")
+public ResponseEntity<ApiResponse<Void>> deleteMyAttendance(
+        @AuthenticationPrincipal Employee emp,
+        @PathVariable Long attendanceId) {
+
+    attendanceService.deleteMyAttendance(emp.getId(), attendanceId);
+
+    return ResponseEntity.ok(
+            ApiResponse.success("Attendance record deleted", null)
+    );
+}
+@DeleteMapping("/my/clear-all")
+@Operation(summary = "Clear all my attendance records")
+public ResponseEntity<ApiResponse<Void>> clearMyAttendance(
+        @AuthenticationPrincipal Employee emp) {
+
+    attendanceService.clearMyAttendance(emp.getId());
+
+    return ResponseEntity.ok(
+            ApiResponse.success("All attendance records cleared", null)
+    );
+}
+ @GetMapping("/my/detailed-report")
     @Operation(summary = "Get my detailed attendance report (yesterday, weekly, monthly)")
     public ResponseEntity<ApiResponse<AttendanceDTOs.EmployeeDetailedReport>> getMyDetailedReport(
             @AuthenticationPrincipal Employee emp,
