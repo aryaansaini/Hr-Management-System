@@ -562,7 +562,7 @@ export default function AdminLeavePage() {
 
     try {
       await api.delete(
-        `/api/leaves/clear-all?status=${deleteStatus}`
+        `/api/leaves/clear/${deleteStatus}`
       );
 
       toast.success(
@@ -1672,8 +1672,8 @@ export default function AdminLeavePage() {
                       }
                       title="Delete leave"
                       style={{
-                        width: '38px',
-                        height: '38px',
+                        width: '34px',
+                        height: '32px',
 
                         border:
                           '1px solid var(--card-border)',
@@ -1716,12 +1716,12 @@ export default function AdminLeavePage() {
                     >
                       {deleting === l.id ? (
                         <Loader2
-                          size={17}
+                          size={15}
                           className="animate-spin"
                         />
                       ) : (
                         <Trash2
-                          size={17}
+                          size={15}
                         />
                       )}
                     </button>

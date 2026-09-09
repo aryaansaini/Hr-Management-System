@@ -1,11 +1,25 @@
 'use client';
 
 import React, {
+  useState,
   useEffect,
   useMemo,
-  useState,
 } from 'react';
 import { useTheme } from 'next-themes';
+
+import { 
+  GiElephantHead,
+  GiCandleFlame,
+  GiPineTree,
+  GiMoon,
+  GiPaintBrush,
+  GiLotus,
+  GiWheat,
+  GiTrident,
+  GiFlowerPot,
+  GiPartyPopper
+} from 'react-icons/gi';
+import { FaCross, FaStar } from 'react-icons/fa';
 
 /* =========================================================
    HOLIDAY DATA
@@ -404,8 +418,37 @@ function getCalendarDays(currentDate) {
 }
 
 /* =========================================================
-   HOLIDAY THEME
+   HOLIDAY THEME & ARTWORK
 ========================================================= */
+
+const ArtworkIcon = ({ type, size = 24 }) => {
+  switch(type) {
+    case 'ganesh':
+      return <GiElephantHead size={size} />;
+    case 'diwali':
+      return <GiCandleFlame size={size} />;
+    case 'christmas':
+      return <GiPineTree size={size} />;
+    case 'islamic':
+      return <GiMoon size={size} />;
+    case 'holi':
+      return <GiPaintBrush size={size} />;
+    case 'christian':
+      return <FaCross size={size} />;
+    case 'buddha':
+      return <GiLotus size={size} />;
+    case 'harvest':
+      return <GiWheat size={size} />;
+    case 'hindu':
+      return <GiTrident size={size} />;
+    case 'sikh':
+      return <FaStar size={size} />;
+    case 'spring':
+      return <GiFlowerPot size={size} />;
+    default:
+      return <GiPartyPopper size={size} />;
+  }
+};
 
 function getHolidayTheme(holiday) {
   const name =
@@ -423,6 +466,7 @@ function getHolidayTheme(holiday) {
       background:
         'linear-gradient(135deg,#fff7ed 0%,#ffedd5 48%,#fed7aa 100%)',
       pattern: '🐘',
+      iconType: 'ganesh',
       label: 'Ganesh Festival',
     };
   }
@@ -440,6 +484,7 @@ function getHolidayTheme(holiday) {
       background:
         'linear-gradient(135deg,#fffdf0 0%,#fef3c7 50%,#fde68a 100%)',
       pattern: '🪔',
+      iconType: 'diwali',
       label: 'Festival of Lights',
     };
   }
@@ -456,6 +501,7 @@ function getHolidayTheme(holiday) {
       background:
         'linear-gradient(135deg,#fdf2f8,#fce7f3,#f5d0fe)',
       pattern: '🎨',
+      iconType: 'holi',
       label: 'Festival of Colours',
     };
   }
@@ -475,6 +521,7 @@ function getHolidayTheme(holiday) {
       background:
         'linear-gradient(135deg,#ecfdf5,#d1fae5,#ccfbf1)',
       pattern: '🌙',
+      iconType: 'islamic',
       label: 'Islamic Festival',
     };
   }
@@ -491,6 +538,7 @@ function getHolidayTheme(holiday) {
       background:
         'linear-gradient(135deg,#fff7f7,#fee2e2,#dcfce7)',
       pattern: '🎄',
+      iconType: 'christmas',
       label: 'Christmas',
     };
   }
@@ -508,6 +556,7 @@ function getHolidayTheme(holiday) {
       background:
         'linear-gradient(135deg,#eff6ff,#dbeafe,#e0e7ff)',
       pattern: '✝️',
+      iconType: 'christian',
       label: 'Christian Festival',
     };
   }
@@ -525,6 +574,7 @@ function getHolidayTheme(holiday) {
       background:
         'linear-gradient(135deg,#f5f3ff,#ede9fe,#ddd6fe)',
       pattern: '🔱',
+      iconType: 'hindu',
       label: 'Hindu Festival',
     };
   }
@@ -544,6 +594,7 @@ function getHolidayTheme(holiday) {
       background:
         'linear-gradient(135deg,#fffbeb,#fef3c7,#fed7aa)',
       pattern: '🌾',
+      iconType: 'harvest',
       label: 'Harvest Festival',
     };
   }
@@ -560,6 +611,7 @@ function getHolidayTheme(holiday) {
       background:
         'linear-gradient(135deg,#f0fdfa,#ccfbf1,#d1fae5)',
       pattern: '🪷',
+      iconType: 'buddha',
       label: 'Buddha Purnima',
     };
   }
@@ -576,6 +628,7 @@ function getHolidayTheme(holiday) {
       background:
         'linear-gradient(135deg,#fffbeb,#fef3c7,#fde68a)',
       pattern: '☬',
+      iconType: 'sikh',
       label: 'Sikh Festival',
     };
   }
@@ -593,6 +646,7 @@ function getHolidayTheme(holiday) {
       background:
         'linear-gradient(135deg,#fefce8,#fef9c3,#fef08a)',
       pattern: '🌼',
+      iconType: 'spring',
       label: 'Spring Festival',
     };
   }
@@ -607,9 +661,10 @@ function getHolidayTheme(holiday) {
       glow:
         'rgba(37,99,235,0.30)',
       background:
-        'linear-gradient(135deg,#eff6ff,#dbeafe,#e0f2fe)',
-      pattern: '🇮🇳',
-      label: 'National Holiday',
+        'linear-gradient(135deg,#f8fafc,#f1f5f9,#e2e8f0)',
+      pattern: '🎉',
+      iconType: 'default',
+      label: 'Public Holiday',
     };
   }
 
@@ -749,21 +804,20 @@ function FestivalArtwork({
             'blur(8px)',
         }}
       >
-        <span
+        <div
           style={{
-            fontSize:
-              holiday.name
-                .toLowerCase()
-                .includes('ganesh')
-                ? '45px'
-                : '40px',
-            lineHeight: 1,
-            filter:
-              'drop-shadow(0 5px 10px rgba(0,0,0,0.12))',
+            color: theme.accent,
+            filter: 'drop-shadow(0 5px 10px rgba(0,0,0,0.12))',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
-          {theme.pattern}
-        </span>
+          <ArtworkIcon 
+            type={theme.iconType} 
+            size={holiday.name.toLowerCase().includes('ganesh') ? 48 : 40} 
+          />
+        </div>
       </div>
 
       {/* Large faded artwork */}
@@ -773,13 +827,13 @@ function FestivalArtwork({
           position: 'absolute',
           right: '-15px',
           bottom: '-35px',
-          fontSize: '115px',
           opacity: 0.10,
           transform: 'rotate(-8deg)',
           pointerEvents: 'none',
+          color: theme.accent,
         }}
       >
-        {theme.pattern}
+        <ArtworkIcon type={theme.iconType} size={115} />
       </div>
 
       {/* Festival label */}
@@ -1039,7 +1093,7 @@ export default function HolidayCalendar() {
       <div
         style={{
           width: '100%',
-          height: '100%',
+          height: 'calc(100vh - 140px)',
           display: 'flex',
           flexDirection: 'column',
           background: isDark
@@ -1287,7 +1341,7 @@ export default function HolidayCalendar() {
                       'relative',
                     minWidth: 0,
                     minHeight: 0,
-                    padding: '7px',
+                    padding: '8px',
                     borderRight:
                       isDark
                         ? '1px solid #1e293b'
@@ -1353,11 +1407,11 @@ export default function HolidayCalendar() {
                       display: 'flex',
                       flexDirection:
                         'column',
-                      gap: '4px',
+                      gap: '2px',
                       overflowY:
-                        'auto',
+                        'hidden',
                       maxHeight:
-                        'calc(100% - 34px)',
+                        'calc(100% - 32px)',
                     }}
                   >
                     {holidays.map(
@@ -1388,9 +1442,9 @@ export default function HolidayCalendar() {
                               border:
                                 'none',
                               borderRadius:
-                                '7px',
+                                '4px',
                               padding:
-                                '5px 7px',
+                                '3px 5px',
                               background:
                                 isDark
                                   ? `${theme.accent}20`
@@ -1402,17 +1456,18 @@ export default function HolidayCalendar() {
                               cursor:
                                 'pointer',
                               fontSize:
-                                '11px',
+                                '10px',
                               fontWeight:
                                 '700',
                               lineHeight:
-                                '1.25',
+                                '1.1',
                               overflow:
                                 'hidden',
                               textOverflow:
                                 'ellipsis',
                               whiteSpace:
                                 'nowrap',
+                              flexShrink: 0,
                               transition:
                                 'all .2s ease',
                             }}
