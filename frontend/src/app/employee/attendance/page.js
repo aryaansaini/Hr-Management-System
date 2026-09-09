@@ -1026,10 +1026,8 @@ export default function AttendancePage() {
               }
               title="Clear all attendance"
               style={{
-                height: '54px',
-                minWidth: '145px',
-                padding: '0 24px',
-                borderRadius: '12px',
+                padding: '9px 16px',
+                borderRadius: '8px',
                 border:
                   '1px solid #fecdd3',
                 background:
@@ -1042,8 +1040,8 @@ export default function AttendancePage() {
                 alignItems: 'center',
                 justifyContent:
                   'center',
-                gap: '10px',
-                fontSize: '14px',
+                gap: '6px',
+                fontSize: '12px',
                 fontWeight: '700',
                 cursor:
                   clearingAll ||
@@ -1058,7 +1056,7 @@ export default function AttendancePage() {
               }}
             >
               <Trash2
-                size={18}
+                size={15}
                 color="#dc2626"
                 strokeWidth={2.5}
               />
@@ -1299,77 +1297,33 @@ export default function AttendancePage() {
                       title="Delete attendance"
                       aria-label="Delete attendance"
                       style={{
-                        width: '54px',
-                        height: '54px',
-                        borderRadius: '14px',
-
-                        /*
-                         * Visible border in both themes
-                         */
-                        border:
-                          '1px solid #334155',
-
-                        /*
-                         * White background for light theme
-                         */
-                        background:
-                          '#ffffff',
-
-                        /*
-                         * IMPORTANT:
-                         * Red icon color
-                         */
-                        color:
-                          '#dc2626',
-
+                        width: '34px',
+                        height: '32px',
                         display: 'flex',
-                        alignItems:
-                          'center',
-                        justifyContent:
-                          'center',
-
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: 'transparent',
+                        color: '#ef4444',
+                        border: '1px solid rgba(239,68,68,0.35)',
+                        borderRadius: '7px',
                         cursor:
-                          deletingId ===
-                            r.id ||
-                          clearingAll
+                          deletingId === r.id || clearingAll
                             ? 'not-allowed'
                             : 'pointer',
-
-                        opacity:
-                          deletingId ===
-                            r.id ||
-                          clearingAll
-                            ? 0.5
-                            : 1,
-
-                        transition:
-                          'all 0.2s ease',
+                        transition: 'all 0.2s ease',
                       }}
                       onMouseEnter={(e) => {
                         if (
-                          deletingId !==
-                            r.id &&
+                          deletingId !== r.id &&
                           !clearingAll
                         ) {
                           e.currentTarget.style.background =
-                            '#fff1f2';
-
-                          e.currentTarget.style.borderColor =
-                            '#ef4444';
-
-                          e.currentTarget.style.color =
-                            '#dc2626';
+                            'rgba(239, 68, 68, 0.10)';
                         }
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.background =
-                          '#ffffff';
-
-                        e.currentTarget.style.borderColor =
-                          '#334155';
-
-                        e.currentTarget.style.color =
-                          '#dc2626';
+                          'transparent';
                       }}
                     >
                       {deletingId ===
@@ -1384,7 +1338,7 @@ export default function AttendancePage() {
                         </span>
                       ) : (
                         <Trash2
-                          size={20}
+                          size={15}
                           color="#dc2626"
                           strokeWidth={2.5}
                           style={{

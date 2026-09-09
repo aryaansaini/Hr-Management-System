@@ -1209,24 +1209,7 @@ export default function AdminNotificationsPage() {
               }}
             >
 
-              <button
-                onClick={() => setSelectedNotification(null)}
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  border: 'none',
-                  borderRadius: '8px',
-                  background: 'var(--background)',
-                  color: 'var(--text-primary)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-                aria-label="Back"
-              >
-                ←
-              </button>
+
 
               <p
                 style={{
@@ -1239,24 +1222,7 @@ export default function AdminNotificationsPage() {
                 Notification
               </p>
 
-              <button
-                onClick={() => setSelectedNotification(null)}
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  border: 'none',
-                  borderRadius: '8px',
-                  background: 'transparent',
-                  color: 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-                aria-label="Close"
-              >
-                <X size={18} />
-              </button>
+
 
             </div>
 
