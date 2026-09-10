@@ -835,7 +835,32 @@ export default function EmployeeNotificationsPage() {
 
             >
 
+              
+     feature/employee-notification-navigation
+              <button
 
+                onClick={() =>
+                  setSelectedNotification(null)
+                }
+
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  border: 'none',
+                  borderRadius: '8px',
+                  background: 'var(--background)',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+
+                aria-label="Back"
+
+              >
+                <X size={18} />
+              </button>
 
 
               <p
@@ -852,7 +877,30 @@ export default function EmployeeNotificationsPage() {
               </p>
 
 
+              <button
 
+                onClick={() =>
+                  setSelectedNotification(null)
+                }
+
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  border: 'none',
+                  borderRadius: '8px',
+                  background: 'transparent',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+
+                aria-label="Close"
+
+              >
+                <X size={18} />
+              </button>
 
             </div>
 
@@ -989,7 +1037,6 @@ export default function EmployeeNotificationsPage() {
                 </span>
 
               </div>
-
 
               <h1
 
@@ -1204,7 +1251,6 @@ export default function EmployeeNotificationsPage() {
 
               style={{
                 padding: '11px 20px',
-                background: 'var(--card-bg)',
                 color: 'var(--text-primary)',
                 border:
                   '1.5px solid var(--card-border)',
