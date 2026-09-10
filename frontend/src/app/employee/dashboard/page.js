@@ -1,597 +1,2415 @@
+
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { useRouter } from 'next/navigation';
 import {
-  getMyAttendance, checkIn, checkOut,
-  getMyLeaves, getLeaveBalance,
-  getUnreadCount, getMyNotifications
+  getMyAttendance,
+  checkIn,
+  checkOut,
+  getMyLeaves,
+  getLeaveBalance,
+  getUnreadCount,
+  getMyNotifications,
 } from '@/lib/employeeApi';
 import toast from 'react-hot-toast';
-import { Calendar, Coffee, Clock, Bell, Check, Loader2, Palmtree, Thermometer, Sun, Baby, ClipboardList, Leaf, LogOut } from 'lucide-react';
 
-function StatCard({ label, value, sub, color, bg, icon, sparklineId, sparklinePath }) {
+import {
+  CalendarDays,
+  Clock3,
+  Bell,
+  CheckCircle2,
+  LogIn,
+  LogOut,
+  ArrowRight,
+  Palmtree,
+  Thermometer,
+  Sun,
+  Baby,
+  ClipboardList,
+  BriefcaseBusiness,
+  FileText,
+  UserRound,
+  Sparkles,
+  ChevronRight,
+  Timer,
+  TrendingUp,
+} from 'lucide-react';
+
+/* =========================================================
+   CSS
+   ========================================================= */
+
+const dashboardCSS = `
+@keyframes employeeDashboardSpin {
+    from {
+    transform: rotate(0deg);
+  }
+
+    to {
+    transform: rotate(360deg);
+  }
+}
+
+  .employee - dashboard * {
+  box- sizing: border - box;
+  }
+
+  .employee - kpi {
+  transition:
+      transform 0.2s ease,
+    box - shadow 0.2s ease,
+      border - color 0.2s ease;
+}
+
+  .employee - kpi.clickable:hover {
+  transform: translateY(-3px);
+  box - shadow: 0 14px 35px rgba(15, 23, 42, 0.09)!important;
+  border - color: rgba(59, 130, 246, 0.25)!important;
+}
+
+  .quick - action - button {
+  border: 1px solid var(--card - border);
+  background: var(--bg - primary);
+  color: var(--text - primary);
+  border - radius: 13px;
+  padding: 12px;
+  cursor: pointer;
+  display: flex;
+  align - items: center;
+  gap: 10px;
+  font - size: 11px;
+  font - weight: 700;
+  transition:
+      transform 0.2s ease,
+    background 0.2s ease,
+      border - color 0.2s ease;
+  width: 100 %;
+  text - align: left;
+}
+
+  .quick - action - button:hover {
+  transform: translateY(-2px);
+  border - color: rgba(59, 130, 246, 0.30);
+  background: rgba(59, 130, 246, 0.05);
+}
+
+@media(max - width: 1100px) {
+    .employee - dashboard - grid {
+    grid - template - columns: repeat(2, 1fr)!important;
+  }
+
+    .employee - two - column {
+    grid - template - columns: 1fr!important;
+  }
+
+    .employee - bottom - grid {
+    grid - template - columns: 1fr!important;
+  }
+}
+
+@media(max - width: 750px) {
+    .employee - dashboard {
+    margin: -16px!important;
+    padding: 16px!important;
+  }
+
+    .quick - action - grid {
+    grid - template - columns: 1fr 1fr!important;
+  }
+
+    .header - content {
+    align - items: flex - start!important;
+    flex - direction: column!important;
+  }
+
+    .header - date {
+    align - items: flex - start!important;
+    text - align: left!important;
+  }
+}
+
+@media(max - width: 520px) {
+    .employee - dashboard - grid {
+    grid - template - columns: 1fr!important;
+  }
+
+    .quick - action - grid {
+    grid - template - columns: 1fr!important;
+  }
+
+    .attendance - time - grid {
+    gap: 10px!important;
+  }
+
+    .leave - balance - grid {
+    grid - template - columns: 1fr!important;
+  }
+
+    .leave - request - row {
+    align - items: flex - start!important;
+    flex - direction: column!important;
+  }
+
+    .notification - row {
+    align - items: flex - start!important;
+  }
+}
+`;
+
+/* =========================================================
+   LEAVE STYLES
+   ========================================================= */
+
+const leaveStyles = {
+  ANNUAL: {
+    color: '#8b5cf6',
+    bg: 'rgba(139, 92, 246, 0.10)',
+    icon: Palmtree,
+  },
+
+  SICK: {
+    color: '#10b981',
+    bg: 'rgba(16, 185, 129, 0.10)',
+    icon: Thermometer,
+  },
+
+  CASUAL: {
+    color: '#f59e0b',
+    bg: 'rgba(245, 158, 11, 0.10)',
+    icon: Sun,
+  },
+
+  PATERNITY: {
+    color: '#a855f7',
+    bg: 'rgba(168, 85, 247, 0.10)',
+    icon: Baby,
+  },
+
+  MATERNITY: {
+    color: '#ec4899',
+    bg: 'rgba(236, 72, 153, 0.10)',
+    icon: Baby,
+  },
+
+  UNPAID: {
+    color: '#64748b',
+    bg: 'rgba(100, 116, 139, 0.10)',
+    icon: ClipboardList,
+  },
+};
+
+/* =========================================================
+   STATUS STYLES
+   ========================================================= */
+
+const statusStyles = {
+  APPROVED: {
+    color: '#10b981',
+    bg: 'rgba(16, 185, 129, 0.10)',
+    border: 'rgba(16, 185, 129, 0.22)',
+  },
+
+  PENDING: {
+    color: '#f59e0b',
+    bg: 'rgba(245, 158, 11, 0.10)',
+    border: 'rgba(245, 158, 11, 0.22)',
+  },
+
+  REJECTED: {
+    color: '#ef4444',
+    bg: 'rgba(239, 68, 68, 0.10)',
+    border: 'rgba(239, 68, 68, 0.22)',
+  },
+
+  CANCELLED: {
+    color: '#64748b',
+    bg: 'rgba(100, 116, 139, 0.10)',
+    border: 'rgba(100, 116, 139, 0.22)',
+  },
+
+  CANCELLATION_PENDING: {
+    color: '#a855f7',
+    bg: 'rgba(168, 85, 247, 0.10)',
+    border: 'rgba(168, 85, 247, 0.22)',
+  },
+};
+
+/* =========================================================
+   STATUS BADGE
+   ========================================================= */
+
+function StatusBadge({ status }) {
+  const style = statusStyles[status] || {
+    color: 'var(--text-secondary)',
+    bg: 'rgba(148, 163, 184, 0.10)',
+    border: 'rgba(148, 163, 184, 0.20)',
+  };
+
   return (
-    <div style={{
-      background: `linear-gradient(145deg, ${color}10, var(--card-bg))`,
-      borderRadius: '14px', padding: '20px',
-      border: `1px solid var(--card-border)`, flex: 1,
-      boxShadow: `0 4px 20px -2px ${color}10`, position: 'relative', overflow: 'hidden'
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', position: 'relative', zIndex: 2 }}>
-        <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '600', letterSpacing: '0.3px' }}>{label}</span>
-        <div style={{
-          width: '36px', height: '36px', background: `${color}15`,
-          borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          border: `1px solid ${color}40`, color: color,
-          boxShadow: `inset 0 0 10px ${color}10`
-        }}>
-          {icon}
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '5px 9px',
+        borderRadius: '999px',
+        background: style.bg,
+        color: style.color,
+        border: '1px solid ' + style.border,
+        fontSize: '9px',
+        fontWeight: 800,
+        letterSpacing: '0.4px',
+        textTransform: 'uppercase',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {status ? status.replace(/_/g, ' ') : 'UNKNOWN'}
+    </span>
+  );
+}
+
+/* =========================================================
+   KPI
+   ========================================================= */
+
+function KPI({
+  title,
+  value,
+  subtitle,
+  icon: Icon,
+  accent,
+  onClick,
+}) {
+  return (
+    <div
+      onClick={onClick}
+      className={
+        onClick
+          ? 'employee-kpi clickable'
+          : 'employee-kpi'
+      }
+      style={{
+        position: 'relative',
+        overflow: 'hidden',
+        background: 'var(--card-bg)',
+        border: '1px solid var(--card-border)',
+        borderRadius: '18px',
+        padding: '20px',
+        minHeight: '132px',
+        cursor: onClick ? 'pointer' : 'default',
+        boxShadow: 'var(--card-shadow)',
+      }}
+    >
+      <div
+        style={{
+          position: 'absolute',
+          width: '120px',
+          height: '120px',
+          right: '-55px',
+          top: '-55px',
+          borderRadius: '50%',
+          background: accent,
+          opacity: 0.07,
+          pointerEvents: 'none',
+        }}
+      />
+
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: '16px',
+        }}
+      >
+        <span
+          style={{
+            fontSize: '12px',
+            color: 'var(--text-secondary)',
+            fontWeight: 700,
+          }}
+        >
+          {title}
+        </span>
+
+        <div
+          style={{
+            width: '38px',
+            height: '38px',
+            borderRadius: '11px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: accent,
+            background: accent + '12',
+            border: '1px solid ' + accent + '25',
+          }}
+        >
+          <Icon size={18} />
         </div>
       </div>
-      <div style={{ fontSize: '28px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '4px', position: 'relative', zIndex: 2 }}>{value}</div>
-      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', position: 'relative', zIndex: 2 }}>{sub}</div>
 
-      {sparklinePath && (
-        <div style={{
-          position: 'absolute', bottom: '20px', right: '20px', width: '45%', height: '35px', zIndex: 1, opacity: 0.9,
-          maskImage: 'linear-gradient(to right, transparent 0%, black 25%)',
-          WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 25%)'
-        }}>
-          <svg viewBox="0 0 200 45" preserveAspectRatio="none" style={{ width: '100%', height: '100%' }}>
-            <defs>
-              <linearGradient id={`grad-${sparklineId}`} x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stopColor={color} stopOpacity="0.3" />
-                <stop offset="100%" stopColor={color} stopOpacity="0" />
-              </linearGradient>
-            </defs>
-            <path d={`${sparklinePath} L 200 45 L 0 45 Z`} fill={`url(#grad-${sparklineId})`} />
-            <path d={sparklinePath} stroke={color} strokeWidth="2" fill="none" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+      <div
+        style={{
+          fontSize: '27px',
+          lineHeight: 1,
+          fontWeight: 800,
+          color: 'var(--text-primary)',
+          marginBottom: '7px',
+        }}
+      >
+        {value}
+      </div>
+
+      <div
+        style={{
+          fontSize: '11px',
+          color: 'var(--text-secondary)',
+        }}
+      >
+        {subtitle}
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   SECTION HEADER
+   ========================================================= */
+
+function SectionHeader({
+  icon: Icon,
+  title,
+  subtitle,
+  action,
+  onAction,
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: '12px',
+        marginBottom: '20px',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '11px',
+        }}
+      >
+        <div
+          style={{
+            width: '38px',
+            height: '38px',
+            borderRadius: '11px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(59, 130, 246, 0.10)',
+            color: '#3b82f6',
+          }}
+        >
+          <Icon size={18} />
         </div>
+
+        <div>
+          <div
+            style={{
+              fontSize: '14px',
+              fontWeight: 800,
+              color: 'var(--text-primary)',
+            }}
+          >
+            {title}
+          </div>
+
+          {subtitle && (
+            <div
+              style={{
+                fontSize: '10px',
+                marginTop: '3px',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              {subtitle}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {action && (
+        <button
+          type="button"
+          onClick={onAction}
+          style={{
+            border: 'none',
+            background: 'transparent',
+            color: '#3b82f6',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '3px',
+            fontSize: '11px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            padding: '5px',
+          }}
+        >
+          {action}
+          <ChevronRight size={14} />
+        </button>
       )}
     </div>
   );
 }
 
-function Badge({ status }) {
-  const map = {
-    APPROVED: { bg: 'rgba(22, 163, 74, 0.15)', color: '#10b981', border: '#10b981' },
-    PENDING: { bg: 'rgba(202, 138, 4, 0.15)', color: '#f59e0b', border: '#f59e0b' },
-    REJECTED: { bg: 'rgba(220, 38, 38, 0.15)', color: '#ef4444', border: '#ef4444' },
-    CANCELLED: { bg: '#1E293B', color: 'var(--text-secondary)', border: 'var(--text-secondary)' },
-    CANCELLATION_PENDING: { bg: 'rgba(147, 51, 234, 0.15)', color: '#a855f7', border: '#a855f7' },
-    PRESENT: { bg: 'transparent', color: '#10b981', border: '#10b981' },
-    ABSENT: { bg: 'rgba(220, 38, 38, 0.15)', color: '#ef4444', border: '#ef4444' },
-    HALF_DAY: { bg: 'rgba(217, 119, 6, 0.15)', color: '#f59e0b', border: '#f59e0b' },
-  };
-  const s = map[status] || { bg: '#1E293B', color: 'var(--text-secondary)', border: 'transparent' };
-  return (
-    <span style={{
-      background: s.bg, color: s.color, padding: '3px 10px',
-      borderRadius: '20px', fontSize: '11px', fontWeight: '700',
-      border: `1px solid ${s.border}`
-    }}>
-      {status?.replace(/_/g, ' ')}
-    </span>
-  );
-}
+/* =========================================================
+   LEAVE RING
+   ========================================================= */
 
-function Loader() {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px' }}>
-      <div style={{ width: '32px', height: '32px', border: '3px solid #e2e8f0', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </div>
-  );
-}
-
-// Same palette used across the leave pages, so balances look consistent everywhere
-const balanceStyle = {
-  ANNUAL: { color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.15)', icon: <Palmtree size={14} /> },
-  SICK: { color: '#10b981', bg: 'rgba(16, 185, 129, 0.15)', icon: <Thermometer size={14} /> },
-  CASUAL: { color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)', icon: <Sun size={14} /> },
-  PATERNITY: { color: '#c084fc', bg: 'rgba(192, 132, 252, 0.15)', icon: <Baby size={14} /> },
-  MATERNITY: { color: '#ec4899', bg: 'rgba(236, 72, 153, 0.15)', icon: <Baby size={14} /> },
-  UNPAID: { color: '#94a3b8', bg: 'rgba(148, 163, 184, 0.15)', icon: <ClipboardList size={14} /> },
-};
-
-function MiniRing({ pct, color }) {
-  const size = 42;
-  const strokeWidth = 3;
-  const radius = (size - strokeWidth) / 2;
+function LeaveRing({ percentage, color }) {
+  const size = 48;
+  const stroke = 4;
+  const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
-  const dashoffset = circumference - (pct / 100) * circumference;
+
+  const safePercentage = Math.max(
+    0,
+    Math.min(100, Number(percentage) || 0)
+  );
+
+  const offset =
+    circumference -
+    (safePercentage / 100) * circumference;
 
   return (
-    <div style={{
-      width: size, height: size, borderRadius: '50%',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      flexShrink: 0, position: 'relative'
-    }}>
-      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)', position: 'absolute' }}>
-        <circle cx={size / 2} cy={size / 2} r={radius} stroke="var(--card-border)" strokeWidth={strokeWidth} fill="none" />
+    <div
+      style={{
+        width: size,
+        height: size,
+        position: 'relative',
+        flexShrink: 0,
+      }}
+    >
+      <svg
+        width={size}
+        height={size}
+        viewBox={'0 0 ' + size + ' ' + size}
+        style={{
+          transform: 'rotate(-90deg)',
+          display: 'block',
+        }}
+      >
         <circle
-          cx={size / 2} cy={size / 2} r={radius}
-          stroke={color} strokeWidth={strokeWidth} fill="none"
-          strokeDasharray={circumference} strokeDashoffset={dashoffset} strokeLinecap="round"
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="var(--card-border)"
+          strokeWidth={stroke}
+        />
+
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={color}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
         />
       </svg>
-      <div style={{ fontSize: '9px', fontWeight: 800, color: 'var(--text-primary)', zIndex: 2 }}>
-        {Math.round(pct)}%
+
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '9px',
+          fontWeight: 800,
+          color: 'var(--text-primary)',
+        }}
+      >
+        {Math.round(safePercentage)}%
       </div>
     </div>
   );
 }
 
+/* =========================================================
+   LOADER
+   ========================================================= */
+
+function DashboardLoader() {
+  return (
+    <div
+      style={{
+        minHeight: '450px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <div style={{ textAlign: 'center' }}>
+        <div
+          style={{
+            width: '42px',
+            height: '42px',
+            borderRadius: '50%',
+            border: '3px solid var(--card-border)',
+            borderTopColor: '#3b82f6',
+            animation:
+              'employeeDashboardSpin 0.8s linear infinite',
+            margin: '0 auto 12px',
+          }}
+        />
+
+        <div
+          style={{
+            fontSize: '12px',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          Loading your dashboard...
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   EMPTY STATE
+   ========================================================= */
+
+function EmptyState({
+  icon: Icon,
+  title,
+  text,
+}) {
+  return (
+    <div
+      style={{
+        minHeight: '165px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        textAlign: 'center',
+        color: 'var(--text-secondary)',
+      }}
+    >
+      <div
+        style={{
+          width: '44px',
+          height: '44px',
+          borderRadius: '14px',
+          background: 'var(--bg-primary)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: '10px',
+        }}
+      >
+        <Icon size={19} />
+      </div>
+
+      <div
+        style={{
+          fontSize: '12px',
+          fontWeight: 700,
+          color: 'var(--text-primary)',
+          marginBottom: '4px',
+        }}
+      >
+        {title}
+      </div>
+
+      <div
+        style={{
+          fontSize: '10px',
+          maxWidth: '240px',
+          lineHeight: 1.5,
+        }}
+      >
+        {text}
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   MAIN DASHBOARD
+   ========================================================= */
+
 export default function EmployeeDashboard() {
-  const { user } = useSelector((state) => state.auth);
+  const { user } = useSelector(
+    (state) => state.auth
+  );
+
   const router = useRouter();
 
-  const [attendance, setAttendance] = useState(null);
+  const [attendance, setAttendance] = useState([]);
   const [todayAtt, setTodayAtt] = useState(null);
   const [leaves, setLeaves] = useState([]);
   const [balance, setBalance] = useState([]);
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [notifications, setNotifications] =
+    useState([]);
+  const [unreadCount, setUnreadCount] =
+    useState(0);
+
   const [loading, setLoading] = useState(true);
-  const [checkingIn, setCheckingIn] = useState(false);
-  const [checkingOut, setCheckingOut] = useState(false);
+  const [checkingIn, setCheckingIn] =
+    useState(false);
+  const [checkingOut, setCheckingOut] =
+    useState(false);
+
+  /* =======================================================
+     FETCH DATA
+     ======================================================= */
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
+
     try {
-      const [attRes, leaveRes, balRes, notifRes, unreadRes] = await Promise.allSettled([
-        getMyAttendance(0, 35), // fetch enough records to cover a full 30-day attendance window
+      const [
+        attendanceResult,
+        leavesResult,
+        balanceResult,
+        notificationsResult,
+        unreadResult,
+      ] = await Promise.allSettled([
+        getMyAttendance(0, 35),
         getMyLeaves(0, 5),
         getLeaveBalance(),
         getMyNotifications(0, 5),
         getUnreadCount(),
       ]);
 
-      if (attRes.status === 'fulfilled') {
-        const records = attRes.value.data?.data?.content || [];
+      /* Attendance */
+
+      if (
+        attendanceResult.status ===
+        'fulfilled'
+      ) {
+        const records =
+          attendanceResult.value?.data?.data
+            ?.content || [];
+
         setAttendance(records);
-        const d = new Date();
-        const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        const todayRecord = records.find(r => r.date === today);
-        setTodayAtt(todayRecord || null);
+
+        const now = new Date();
+
+        const today =
+          now.getFullYear() +
+          '-' +
+          String(
+            now.getMonth() + 1
+          ).padStart(2, '0') +
+          '-' +
+          String(
+            now.getDate()
+          ).padStart(2, '0');
+
+        const todayRecord = records.find(
+          (record) =>
+            record.date === today
+        );
+
+        setTodayAtt(
+          todayRecord || null
+        );
+      } else {
+        setAttendance([]);
+        setTodayAtt(null);
       }
-      if (leaveRes.status === 'fulfilled') {
-        setLeaves(leaveRes.value.data?.data?.content || []);
+
+      /* Leaves */
+
+      if (
+        leavesResult.status ===
+        'fulfilled'
+      ) {
+        setLeaves(
+          leavesResult.value?.data?.data
+            ?.content || []
+        );
+      } else {
+        setLeaves([]);
       }
-      if (balRes.status === 'fulfilled') {
-        setBalance(balRes.value.data?.data || []);
+
+      /* Balance */
+
+      if (
+        balanceResult.status ===
+        'fulfilled'
+      ) {
+        setBalance(
+          balanceResult.value?.data
+            ?.data || []
+        );
+      } else {
+        setBalance([]);
       }
-      if (notifRes.status === 'fulfilled') {
-        setNotifications(notifRes.value.data?.data?.content || []);
+
+      /* Notifications */
+
+      if (
+        notificationsResult.status ===
+        'fulfilled'
+      ) {
+        setNotifications(
+          notificationsResult.value
+            ?.data?.data?.content || []
+        );
+      } else {
+        setNotifications([]);
       }
-      if (unreadRes.status === 'fulfilled') {
-        setUnreadCount(unreadRes.value.data?.data || 0);
+
+      /* Unread */
+
+      if (
+        unreadResult.status ===
+        'fulfilled'
+      ) {
+        setUnreadCount(
+          Number(
+            unreadResult.value?.data
+              ?.data || 0
+          )
+        );
+      } else {
+        setUnreadCount(0);
       }
-    } catch (err) {
-      toast.error('Failed to load dashboard data');
+    } catch (error) {
+      console.error(
+        'Employee dashboard error:',
+        error
+      );
+
+      toast.error(
+        'Failed to load dashboard data'
+      );
     } finally {
       setLoading(false);
     }
   }, []);
 
+  /* =======================================================
+     INITIAL LOAD
+     ======================================================= */
+
   useEffect(() => {
-    const timer = setTimeout(() => { fetchAll(); }, 0);
-    return () => clearTimeout(timer);
+    fetchAll();
   }, [fetchAll]);
 
+  /* =======================================================
+     CHECK IN
+     ======================================================= */
+
   const handleCheckIn = async () => {
+    if (
+      todayAtt?.checkIn ||
+      checkingIn
+    ) {
+      return;
+    }
+
     setCheckingIn(true);
+
     try {
       await checkIn();
-      toast.success('Checked in successfully!');
-      fetchAll();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Check-in failed');
+
+      toast.success(
+        'You are checked in successfully'
+      );
+
+      await fetchAll();
+    } catch (error) {
+      console.error(
+        'Check-in error:',
+        error
+      );
+
+      toast.error(
+        error?.response?.data
+          ?.message ||
+          'Check-in failed'
+      );
     } finally {
       setCheckingIn(false);
     }
   };
 
+  /* =======================================================
+     CHECK OUT
+     ======================================================= */
+
   const handleCheckOut = async () => {
+    if (
+      !todayAtt?.checkIn ||
+      todayAtt?.checkOut ||
+      checkingOut
+    ) {
+      return;
+    }
+
     setCheckingOut(true);
+
     try {
       await checkOut();
-      toast.success('Checked out successfully!');
-      fetchAll();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Check-out failed');
+
+      toast.success(
+        'You are checked out successfully'
+      );
+
+      await fetchAll();
+    } catch (error) {
+      console.error(
+        'Check-out error:',
+        error
+      );
+
+      toast.error(
+        error?.response?.data
+          ?.message ||
+          'Check-out failed'
+      );
     } finally {
       setCheckingOut(false);
     }
   };
 
-  const presentDays = (attendance || []).filter(a => a.status === 'PRESENT' || a.status === 'HALF_DAY').length;
-  const annualBalance = balance.find(b => b.leaveType === 'ANNUAL');
-  const pendingLeavesCount = (leaves || []).filter(l => l.status === 'PENDING').length;
+  /* =======================================================
+     CALCULATIONS
+     ======================================================= */
 
-  // True data from backend (no mock fallbacks)
-  const displayBalance = balance || [];
-  const displayAtt = todayAtt || null;
-  const displayLeaves = leaves || [];
-  const displayNotifs = notifications || [];
+  const presentDays =
+    attendance.filter(
+      (item) =>
+        item.status === 'PRESENT' ||
+        item.status === 'HALF_DAY'
+    ).length;
+
+  const pendingLeaves =
+    leaves.filter(
+      (item) =>
+        item.status === 'PENDING'
+    ).length;
+
+  const annualBalance =
+    balance.find(
+      (item) =>
+        item.leaveType === 'ANNUAL'
+    );
+
+  const firstName =
+    user?.name?.split(' ')?.[0] ||
+    'Employee';
+
+  const initials =
+    user?.name
+      ?.split(' ')
+      ?.map(
+        (part) => part[0]
+      )
+      ?.join('')
+      ?.slice(0, 2)
+      ?.toUpperCase() || 'EM';
+
+  const now = new Date();
+
+  const formattedDate =
+    now.toLocaleDateString(
+      'en-IN',
+      {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      }
+    );
+
+  const checkInTime =
+    todayAtt?.checkIn
+      ? todayAtt.checkIn.substring(
+          0,
+          5
+        )
+      : '--:--';
+
+  const checkOutTime =
+    todayAtt?.checkOut
+      ? todayAtt.checkOut.substring(
+          0,
+          5
+        )
+      : '--:--';
+
+  /* =======================================================
+     RENDER
+     ======================================================= */
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', padding: '24px', margin: '-24px', borderRadius: '16px' }}>
-      <style jsx global>{`
-        @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@600;700;800&display=swap');
-      `}</style>
+    <div
+      className="employee-dashboard"
+      style={{
+        minHeight: '100vh',
+        margin: '-24px',
+        padding: '24px',
+        background:
+          'var(--bg-primary)',
+        color:
+          'var(--text-primary)',
+      }}
+    >
+      {/* SAFE CSS */}
 
-      {/* Header */}
-      <div style={{ marginBottom: '24px', position: 'relative' }}>
-        <h1 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '4px', display: 'flex', alignItems: 'center' }}>
-          Welcome back, {user?.name}! <span style={{ fontSize: '24px', marginLeft: '8px' }}>👋</span>
-        </h1>
-        <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-          Here&apos;s your overview for today.
-        </p>
+      <style
+        dangerouslySetInnerHTML={{
+          __html: dashboardCSS,
+        }}
+      />
 
-        {/* Decorative Mountain Graphic Top Right */}
-        <div style={{
-          position: 'absolute', top: -30, right: 0, height: '140px',
-          pointerEvents: 'none', display: 'flex',
-          WebkitMaskImage: 'linear-gradient(to bottom, black 60%, transparent 100%)',
-          maskImage: 'linear-gradient(to bottom, black 60%, transparent 100%)'
-        }}>
-          <img
-            src="/up.png"
-            alt="Header Landscape"
+      {/* ===================================================
+          HEADER
+      =================================================== */}
+
+      <div
+        className="employee-card"
+        style={{
+          padding: '24px',
+          marginBottom: '18px',
+          position: 'relative',
+          overflow: 'hidden',
+          background:
+            'linear-gradient(135deg, var(--card-bg), rgba(59, 130, 246, 0.035))',
+          border:
+            '1px solid var(--card-border)',
+          borderRadius: '18px',
+          boxShadow:
+            'var(--card-shadow)',
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            width: '260px',
+            height: '260px',
+            borderRadius: '50%',
+            right: '-110px',
+            top: '-130px',
+            background:
+              'radial-gradient(circle, rgba(59,130,246,.15), transparent 68%)',
+            pointerEvents: 'none',
+          }}
+        />
+
+        <div
+          className="header-content"
+          style={{
+            display: 'flex',
+            justifyContent:
+              'space-between',
+            alignItems: 'center',
+            gap: '20px',
+            position: 'relative',
+            zIndex: 1,
+          }}
+        >
+          <div
             style={{
-              height: '100%',
-              width: 'auto',
-              borderTopRightRadius: '16px',
-              opacity: 0.9,
-              display: 'block',
-              WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 40%)',
-              maskImage: 'linear-gradient(to right, transparent 0%, black 40%)'
+              display: 'flex',
+              alignItems: 'center',
+              gap: '15px',
             }}
-          />
+          >
+            <div
+              style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '17px',
+                background:
+                  'linear-gradient(135deg, #3b82f6, #6366f1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent:
+                  'center',
+                color: '#fff',
+                fontWeight: 900,
+                fontSize: '17px',
+                boxShadow:
+                  '0 8px 22px rgba(59,130,246,.22)',
+                flexShrink: 0,
+              }}
+            >
+              {initials}
+            </div>
+
+            <div>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '7px',
+                  marginBottom: '5px',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: '22px',
+                    fontWeight: 850,
+                  }}
+                >
+                  {new Date().getHours() < 12
+                    ? 'Good morning'
+                    : new Date().getHours() < 17
+                      ? 'Good afternoon'
+                      : 'Good evening'}
+                  , {firstName}
+                </span>
+
+                <Sparkles
+                  size={17}
+                  color="#f59e0b"
+                />
+              </div>
+
+              <div
+                style={{
+                  fontSize: '11px',
+                  color:
+                    'var(--text-secondary)',
+                }}
+              >
+                {user?.designation ||
+                  'Employee'}
+
+                {user?.department
+                  ? ' • ' +
+                    user.department
+                  : ''}
+              </div>
+            </div>
+          </div>
+
+          <div
+            className="header-date"
+            style={{
+              textAlign: 'right',
+              display: 'flex',
+              flexDirection:
+                'column',
+              alignItems:
+                'flex-end',
+              gap: '8px',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems:
+                  'center',
+                gap: '7px',
+                fontSize: '11px',
+                color:
+                  'var(--text-secondary)',
+              }}
+            >
+              <CalendarDays
+                size={14}
+              />
+
+              {formattedDate}
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                router.push(
+                  '/employee/notifications'
+                )
+              }
+              style={{
+                display: 'flex',
+                alignItems:
+                  'center',
+                gap: '7px',
+                border: 'none',
+                background:
+                  'transparent',
+                color:
+                  'var(--text-primary)',
+                cursor: 'pointer',
+                fontSize: '11px',
+                fontWeight: 700,
+                padding: 0,
+              }}
+            >
+              <Bell size={15} />
+
+              Notifications
+
+              {unreadCount > 0 && (
+                <span
+                  style={{
+                    minWidth: '19px',
+                    height: '19px',
+                    padding:
+                      '0 5px',
+                    borderRadius:
+                      '999px',
+                    background:
+                      '#ef4444',
+                    color: '#fff',
+                    fontSize: '9px',
+                    display: 'inline-flex',
+                    alignItems:
+                      'center',
+                    justifyContent:
+                      'center',
+                    fontWeight: 800,
+                  }}
+                >
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
-      {loading ? <Loader /> : (
+      {loading ? (
+        <DashboardLoader />
+      ) : (
         <>
-          {/* Stats Row */}
-          <div className="dashboard-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
-            <StatCard
-              label="Present Days"
-              value={presentDays > 0 ? presentDays : 1}
-              sub="Total Present"
-              color="#14b8a6" icon={<Calendar size={20} />}
-              sparklineId="present" sparklinePath="M 0 35 Q 20 20 40 30 T 80 25 T 120 30 T 160 20 T 200 25"
+          {/* =================================================
+              KPI CARDS
+          ================================================= */}
+
+          <div
+            className="employee-dashboard-grid"
+            style={{
+              display: 'grid',
+              gridTemplateColumns:
+                'repeat(4, minmax(0, 1fr))',
+              gap: '15px',
+              marginBottom: '18px',
+            }}
+          >
+            <KPI
+              title="Present Days"
+              value={presentDays}
+              subtitle="Recorded attendance"
+              icon={CheckCircle2}
+              accent="#10b981"
+              onClick={() =>
+                router.push(
+                  '/employee/attendance'
+                )
+              }
             />
-            <StatCard
-              label="Leave Balance"
-              value={annualBalance ? `${annualBalance.remaining} days` : '18 days'}
-              sub="Annual remaining"
-              color="#8b5cf6" icon={<Coffee size={20} />}
-              sparklineId="leave" sparklinePath="M 0 25 Q 30 35 60 20 T 120 30 T 180 15 T 200 20"
+
+            <KPI
+              title="Annual Leave"
+              value={
+                annualBalance
+                  ? String(
+                      annualBalance.remaining
+                    ) + ' days'
+                  : '0 days'
+              }
+              subtitle="Remaining balance"
+              icon={Palmtree}
+              accent="#8b5cf6"
+              onClick={() =>
+                router.push(
+                  '/employee/leave'
+                )
+              }
             />
-            <StatCard
-              label="Pending Leaves"
-              value={pendingLeavesCount > 0 ? pendingLeavesCount : 0}
-              sub="Awaiting approval"
-              color="#f59e0b" icon={<Clock size={20} />}
-              sparklineId="pending" sparklinePath="M 0 30 Q 40 10 80 25 T 150 15 T 200 25"
+
+            <KPI
+              title="Pending Requests"
+              value={pendingLeaves}
+              subtitle="Waiting for approval"
+              icon={Clock3}
+              accent="#f59e0b"
+              onClick={() =>
+                router.push(
+                  '/employee/leave'
+                )
+              }
             />
-            <StatCard
-              label="Notifications"
-              value={unreadCount > 0 ? unreadCount : 0}
-              sub="Unread messages"
-              color="#3b82f6" icon={<Bell size={20} />}
-              sparklineId="notif" sparklinePath="M 0 20 Q 25 35 50 25 T 100 20 T 150 30 T 200 15"
+
+            <KPI
+              title="Notifications"
+              value={unreadCount}
+              subtitle="Unread messages"
+              icon={Bell}
+              accent="#3b82f6"
+              onClick={() =>
+                router.push(
+                  '/employee/notifications'
+                )
+              }
             />
           </div>
 
-          {/* Main Grid */}
-          <div className="dashboard-main-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+          {/* =================================================
+              ATTENDANCE + LEAVE
+          ================================================= */}
 
-            {/* Today Attendance */}
-            <div style={{
-              background: 'var(--card-bg)', borderRadius: '12px', padding: '24px',
-              border: '1px solid var(--card-border)', boxShadow: 'var(--card-shadow)',
-              position: 'relative', overflow: 'hidden'
-            }}>
-              {/* Subtle dot pattern background on top right */}
-              <div style={{ position: 'absolute', top: 10, right: 10, opacity: 0.05, pointerEvents: 'none' }}>
-                <svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
-                  <defs><pattern id="dots" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="2" fill="currentColor" /></pattern></defs>
-                  <rect width="60" height="60" fill="url(#dots)" />
-                </svg>
+          <div
+            className="employee-two-column"
+            style={{
+              display: 'grid',
+              gridTemplateColumns:
+                'minmax(0, 1.1fr) minmax(0, .9fr)',
+              gap: '18px',
+              marginBottom: '18px',
+            }}
+          >
+            {/* ATTENDANCE */}
+
+            <div
+              className="employee-card"
+              style={{
+                padding: '22px',
+                overflow: 'hidden',
+                position: 'relative',
+                background:
+                  'var(--card-bg)',
+                border:
+                  '1px solid var(--card-border)',
+                borderRadius: '18px',
+                boxShadow:
+                  'var(--card-shadow)',
+              }}
+            >
+              <div
+                style={{
+                  position: 'absolute',
+                  right: '-60px',
+                  top: '-80px',
+                  width: '190px',
+                  height: '190px',
+                  borderRadius: '50%',
+                  background:
+                    'radial-gradient(circle, rgba(16,185,129,.11), transparent 68%)',
+                  pointerEvents: 'none',
+                }}
+              />
+
+              <SectionHeader
+                icon={Timer}
+                title="Today's Attendance"
+                subtitle="Track your working hours"
+              />
+
+              <div
+                className="attendance-time-grid"
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns:
+                    '1fr auto 1fr',
+                  alignItems: 'center',
+                  gap: '18px',
+                  padding: '18px',
+                  borderRadius: '15px',
+                  background:
+                    'var(--bg-primary)',
+                  border:
+                    '1px solid var(--card-border)',
+                  marginBottom: '18px',
+                }}
+              >
+                <div
+                  style={{
+                    textAlign: 'center',
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: '10px',
+                      color:
+                        'var(--text-secondary)',
+                      marginBottom:
+                        '8px',
+                      fontWeight: 700,
+                    }}
+                  >
+                    CHECK IN
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize: '28px',
+                      fontWeight: 900,
+                      color:
+                        todayAtt?.checkIn
+                          ? '#10b981'
+                          : 'var(--text-primary)',
+                    }}
+                  >
+                    {checkInTime}
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize: '9px',
+                      color:
+                        'var(--text-secondary)',
+                      marginTop: '5px',
+                    }}
+                  >
+                    Start of work
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    width: '1px',
+                    height: '55px',
+                    background:
+                      'var(--card-border)',
+                  }}
+                />
+
+                <div
+                  style={{
+                    textAlign: 'center',
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: '10px',
+                      color:
+                        'var(--text-secondary)',
+                      marginBottom:
+                        '8px',
+                      fontWeight: 700,
+                    }}
+                  >
+                    CHECK OUT
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize: '28px',
+                      fontWeight: 900,
+                      color:
+                        todayAtt?.checkOut
+                          ? '#f59e0b'
+                          : 'var(--text-primary)',
+                    }}
+                  >
+                    {checkOutTime}
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize: '9px',
+                      color:
+                        'var(--text-secondary)',
+                      marginTop: '5px',
+                    }}
+                  >
+                    End of work
+                  </div>
+                </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '24px' }}>
-                <div style={{
-                  width: '24px', height: '24px', background: 'rgba(16, 185, 129, 0.15)',
-                  borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  marginRight: '8px'
-                }}>
-                  <Calendar size={14} color="#10b981" />
-                </div>
-                <h3 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                  Today&apos;s Attendance
-                </h3>
-              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems:
+                    'center',
+                  justifyContent:
+                    'space-between',
+                  gap: '12px',
+                  marginBottom:
+                    '18px',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems:
+                      'center',
+                    gap: '8px',
+                  }}
+                >
+                  <span
+                    style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius:
+                        '50%',
+                      background:
+                        todayAtt?.checkIn &&
+                        !todayAtt?.checkOut
+                          ? '#10b981'
+                          : todayAtt?.checkOut
+                          ? '#f59e0b'
+                          : '#94a3b8',
+                      boxShadow:
+                        todayAtt?.checkIn &&
+                        !todayAtt?.checkOut
+                          ? '0 0 0 4px rgba(16,185,129,.10)'
+                          : 'none',
+                    }}
+                  />
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', position: 'relative' }}>
-                <div style={{ flex: 1, textAlign: 'center' }}>
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }}>Check In</div>
-                  <div style={{ fontSize: '26px', fontWeight: '800', color: displayAtt?.checkIn ? '#10b981' : '#475569', letterSpacing: '0.5px' }}>
-                    {displayAtt?.checkIn ? displayAtt.checkIn.substring(0, 5) : '--:--'}
-                  </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '8px' }}>
-                    {displayAtt?.checkIn ? new Date().toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB')}
-                  </div>
-                </div>
-
-                {/* Vertical Divider */}
-                <div style={{ width: '1px', background: 'var(--card-border)', opacity: 0.7 }} />
-
-                <div style={{ flex: 1, textAlign: 'center' }}>
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }}>Check Out</div>
-                  <div style={{ fontSize: '26px', fontWeight: '800', color: displayAtt?.checkOut ? '#f59e0b' : '#475569', letterSpacing: '0.5px' }}>
-                    {displayAtt?.checkOut ? displayAtt.checkOut.substring(0, 5) : '--:--'}
-                  </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '8px' }}>
-                    {displayAtt?.checkOut ? new Date().toLocaleDateString('en-GB') : 'Not yet'}
-                  </div>
-                </div>
-              </div>
-
-              {/* Status badge positioned below the timestamps */}
-              <div style={{ textAlign: 'center', minHeight: '24px', marginBottom: '24px' }}>
-                {displayAtt?.status && (
-                  <span style={{
-                    background: 'rgba(16, 185, 129, 0.05)', color: '#10b981', padding: '4px 12px',
-                    borderRadius: '20px', fontSize: '10px', fontWeight: '800', border: '1px solid rgba(16, 185, 129, 0.2)',
-                    letterSpacing: '0.5px', display: 'inline-block'
-                  }}>
-                    {displayAtt.status.replace(/_/g, ' ')}
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      color:
+                        'var(--text-secondary)',
+                    }}
+                  >
+                    {todayAtt?.checkOut
+                      ? 'Workday completed'
+                      : todayAtt?.checkIn
+                      ? 'Currently working'
+                      : 'Not checked in yet'}
                   </span>
+                </div>
+
+                {todayAtt?.status && (
+                  <StatusBadge
+                    status={
+                      todayAtt.status
+                    }
+                  />
                 )}
               </div>
 
-              {/* Action buttons */}
-              <div style={{ display: 'flex', gap: '16px' }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns:
+                    '1fr 1fr',
+                  gap: '10px',
+                }}
+              >
                 <button
-                  onClick={handleCheckIn}
-                  disabled={!!displayAtt?.checkIn || checkingIn}
+                  type="button"
+                  onClick={
+                    handleCheckIn
+                  }
+                  disabled={
+                    !!todayAtt?.checkIn ||
+                    checkingIn
+                  }
                   style={{
-                    flex: 1, padding: '12px',
-                    background: displayAtt?.checkIn ? 'rgba(16, 185, 129, 0.05)' : 'transparent',
-                    color: displayAtt?.checkIn ? '#10b981' : 'var(--text-primary)',
-                    border: displayAtt?.checkIn ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: '8px', fontSize: '13px', fontWeight: '600',
-                    cursor: displayAtt?.checkIn ? 'not-allowed' : 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                    transition: 'all 0.2s', opacity: displayAtt?.checkIn ? 1 : 0.7
+                    border: 'none',
+                    borderRadius:
+                      '12px',
+                    padding: '12px',
+                    background:
+                      todayAtt?.checkIn
+                        ? 'rgba(16,185,129,.10)'
+                        : '#10b981',
+                    color:
+                      todayAtt?.checkIn
+                        ? '#10b981'
+                        : '#fff',
+                    cursor:
+                      todayAtt?.checkIn ||
+                      checkingIn
+                        ? 'not-allowed'
+                        : 'pointer',
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    display: 'flex',
+                    justifyContent:
+                      'center',
+                    alignItems:
+                      'center',
+                    gap: '7px',
+                    opacity:
+                      checkingIn
+                        ? 0.7
+                        : 1,
                   }}
                 >
-                  {displayAtt?.checkIn ? <Check size={16} /> : null}
-                  {checkingIn ? <Loader2 size={13} className="animate-spin" /> : displayAtt?.checkIn ? 'Checked In' : 'Check In'}
+                  {todayAtt?.checkIn ? (
+                    <CheckCircle2
+                      size={15}
+                    />
+                  ) : (
+                    <LogIn size={15} />
+                  )}
+
+                  {checkingIn
+                    ? 'Checking...'
+                    : todayAtt?.checkIn
+                    ? 'Checked In'
+                    : 'Check In'}
                 </button>
+
                 <button
-                  onClick={handleCheckOut}
-                  disabled={!displayAtt?.checkIn || !!displayAtt?.checkOut || checkingOut}
+                  type="button"
+                  onClick={
+                    handleCheckOut
+                  }
+                  disabled={
+                    !todayAtt?.checkIn ||
+                    !!todayAtt?.checkOut ||
+                    checkingOut
+                  }
                   style={{
-                    flex: 1, padding: '12px',
-                    background: displayAtt?.checkOut ? 'rgba(245, 158, 11, 0.05)' : (!displayAtt?.checkIn ? 'transparent' : 'rgba(245, 158, 11, 0.05)'),
-                    color: displayAtt?.checkOut ? '#f59e0b' : (!displayAtt?.checkIn ? 'var(--text-primary)' : '#f59e0b'),
-                    border: displayAtt?.checkOut ? '1px solid #f59e0b' : (!displayAtt?.checkIn ? '1px solid rgba(255,255,255,0.1)' : '1px solid #f59e0b'),
-                    borderRadius: '8px', fontSize: '13px', fontWeight: '600',
-                    cursor: (!displayAtt?.checkIn || displayAtt?.checkOut) ? 'not-allowed' : 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                    transition: 'all 0.2s', opacity: (!displayAtt?.checkIn || displayAtt?.checkOut) ? 0.5 : 1
+                    border: 'none',
+                    borderRadius:
+                      '12px',
+                    padding: '12px',
+                    background:
+                      todayAtt?.checkOut
+                        ? 'rgba(245,158,11,.10)'
+                        : todayAtt?.checkIn
+                        ? '#f59e0b'
+                        : 'var(--bg-primary)',
+                    color:
+                      todayAtt?.checkOut
+                        ? '#f59e0b'
+                        : todayAtt?.checkIn
+                        ? '#fff'
+                        : 'var(--text-secondary)',
+                    cursor:
+                      !todayAtt?.checkIn ||
+                      todayAtt?.checkOut ||
+                      checkingOut
+                        ? 'not-allowed'
+                        : 'pointer',
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    display: 'flex',
+                    justifyContent:
+                      'center',
+                    alignItems:
+                      'center',
+                    gap: '7px',
+                    opacity:
+                      !todayAtt?.checkIn
+                        ? 0.55
+                        : checkingOut
+                        ? 0.7
+                        : 1,
                   }}
                 >
-                  <LogOut size={16} />
-                  {checkingOut ? <Loader2 size={13} className="animate-spin" /> : displayAtt?.checkOut ? 'Checked Out' : 'Check Out'}
+                  <LogOut size={15} />
+
+                  {checkingOut
+                    ? 'Checking...'
+                    : todayAtt?.checkOut
+                    ? 'Checked Out'
+                    : 'Check Out'}
                 </button>
               </div>
             </div>
 
-            {/* Leave Balance — redesigned: icon chips + gradient rounded bars instead of plain bars */}
-            <div style={{ background: 'var(--card-bg)', borderRadius: '12px', padding: '24px', border: '1px solid var(--card-border)', boxShadow: 'var(--card-shadow)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <div style={{
-                    width: '24px', height: '24px', background: 'rgba(16, 185, 129, 0.15)',
-                    borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    marginRight: '8px'
-                  }}>
-                    <Leaf size={14} color="#10b981" />
-                  </div>
-                  <h3 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                    Leave Balance
-                  </h3>
-                </div>
-              </div>
+            {/* LEAVE BALANCE */}
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                {displayBalance.map((b, i) => {
-                  const c = balanceStyle[b.leaveType] || balanceStyle.UNPAID;
-                  const isUnpaid = b.leaveType === 'UNPAID';
+            <div
+              className="employee-card"
+              style={{
+                padding: '22px',
+                background:
+                  'var(--card-bg)',
+                border:
+                  '1px solid var(--card-border)',
+                borderRadius: '18px',
+                boxShadow:
+                  'var(--card-shadow)',
+              }}
+            >
+              <SectionHeader
+                icon={Palmtree}
+                title="Leave Balance"
+                subtitle="Your available leave days"
+                action="Manage"
+                onAction={() =>
+                  router.push(
+                    '/employee/leave'
+                  )
+                }
+              />
 
-                  const pct = isUnpaid
-                    ? 0
-                    : b.totalAllotted > 0
-                      ? Math.min(100, (b.remaining / b.totalAllotted) * 100)
-                      : 0;
+              {balance.length ===
+              0 ? (
+                <EmptyState
+                  icon={Palmtree}
+                  title="No leave balance"
+                  text="Leave balance information is not available right now."
+                />
+              ) : (
+                <div
+                  className="leave-balance-grid"
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns:
+                      '1fr 1fr',
+                    gap: '10px',
+                  }}
+                >
+                  {balance.map(
+                    (
+                      item,
+                      index
+                    ) => {
+                      const style =
+                        leaveStyles[
+                          item.leaveType
+                        ] ||
+                        leaveStyles.UNPAID;
 
-                  return (
-                    <div
-                      key={i}
-                      style={{
-                        background: c.bg,
-                        borderRadius: '10px',
-                        padding: '14px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '16px',
-                        border: `1px solid var(--card-border)`
-                      }}
-                    >
-                      <MiniRing pct={pct} color={c.color} />
+                      const Icon =
+                        style.icon;
 
-                      <div style={{ minWidth: 0 }}>
+                      const total =
+                        Number(
+                          item.totalAllotted
+                        ) || 0;
+
+                      const remaining =
+                        Number(
+                          item.remaining
+                        ) || 0;
+
+                      const percentage =
+                        total > 0
+                          ? Math.min(
+                              100,
+                              (remaining /
+                                total) *
+                                100
+                            )
+                          : 0;
+
+                      return (
                         <div
+                          key={
+                            item.leaveType +
+                            '-' +
+                            index
+                          }
                           style={{
-                            fontSize: '10px',
-                            fontWeight: 800,
-                            color: c.color,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px'
+                            padding:
+                              '13px',
+                            borderRadius:
+                              '14px',
+                            background:
+                              style.bg,
+                            border:
+                              '1px solid var(--card-border)',
+                            display:
+                              'flex',
+                            alignItems:
+                              'center',
+                            gap: '11px',
                           }}
                         >
-                          <span>{c.icon}</span>
-                          {b.leaveType}
-                        </div>
+                          <LeaveRing
+                            percentage={
+                              percentage
+                            }
+                            color={
+                              style.color
+                            }
+                          />
 
-                        <div
-                          style={{
-                            fontSize: '16px',
-                            fontWeight: 800,
-                            color: 'var(--text-primary)',
-                            marginTop: '4px'
-                          }}
-                        >
-                          {isUnpaid ? b.used : b.remaining}
-
-                          <span
+                          <div
                             style={{
-                              fontSize: '12px',
-                              fontWeight: 600,
-                              color: 'var(--text-secondary)'
+                              minWidth: 0,
                             }}
                           >
-                            {isUnpaid ? ' / ∞' : ` /${b.totalAllotted}d`}
-                          </span>
+                            <div
+                              style={{
+                                display:
+                                  'flex',
+                                alignItems:
+                                  'center',
+                                gap: '5px',
+                                color:
+                                  style.color,
+                                fontSize:
+                                  '9px',
+                                fontWeight:
+                                  850,
+                                textTransform:
+                                  'uppercase',
+                                letterSpacing:
+                                  '0.4px',
+                              }}
+                            >
+                              <Icon
+                                size={12}
+                              />
+
+                              {item.leaveType
+                                ? item.leaveType.replace(
+                                    /_/g,
+                                    ' '
+                                  )
+                                : 'LEAVE'}
+                            </div>
+
+                            <div
+                              style={{
+                                marginTop:
+                                  '4px',
+                                fontSize:
+                                  '16px',
+                                fontWeight:
+                                  900,
+                                color:
+                                  'var(--text-primary)',
+                              }}
+                            >
+                              {item.leaveType ===
+                              'UNPAID'
+                                ? item.used ||
+                                  0
+                                : remaining}
+
+                              <span
+                                style={{
+                                  fontSize:
+                                    '10px',
+                                  fontWeight:
+                                    600,
+                                  color:
+                                    'var(--text-secondary)',
+                                  marginLeft:
+                                    '3px',
+                                }}
+                              >
+                                {item.leaveType ===
+                                'UNPAID'
+                                  ? 'used'
+                                  : '/ ' +
+                                    total +
+                                    ' days'}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                      );
+                    }
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Bottom Grid */}
-          <div className="dashboard-main-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+          {/* =================================================
+              QUICK ACTIONS
+          ================================================= */}
 
-            {/* Recent Leave Requests */}
-            <div style={{ background: 'var(--card-bg)', borderRadius: '12px', padding: '20px', border: '1px solid var(--card-border)', boxShadow: 'var(--card-shadow)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <div style={{
-                    width: '24px', height: '24px', background: 'rgba(236, 72, 153, 0.15)',
-                    borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    marginRight: '8px'
-                  }}>
-                    <ClipboardList size={14} color="#ec4899" />
-                  </div>
-                  <h3 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                    Recent Leave Requests
-                  </h3>
-                </div>
-                <button
-                  onClick={() => router.push('/employee/leave')}
+          <div
+            className="employee-card"
+            style={{
+              padding: '18px',
+              marginBottom: '18px',
+              background:
+                'var(--card-bg)',
+              border:
+                '1px solid var(--card-border)',
+              borderRadius: '18px',
+              boxShadow:
+                'var(--card-shadow)',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems:
+                  'center',
+                gap: '9px',
+                marginBottom:
+                  '13px',
+              }}
+            >
+              <BriefcaseBusiness
+                size={16}
+                color="#3b82f6"
+              />
+
+              <span
+                style={{
+                  fontSize: '13px',
+                  fontWeight: 800,
+                }}
+              >
+                Quick Actions
+              </span>
+            </div>
+
+            <div
+              className="quick-action-grid"
+              style={{
+                display: 'grid',
+                gridTemplateColumns:
+                  'repeat(4, 1fr)',
+                gap: '10px',
+              }}
+            >
+              <button
+                type="button"
+                className="quick-action-button"
+                onClick={() =>
+                  router.push(
+                    '/employee/leave'
+                  )
+                }
+              >
+                <Palmtree
+                  size={16}
+                  color="#8b5cf6"
+                />
+
+                <span>
+                  Apply Leave
+                </span>
+
+                <ArrowRight
+                  size={13}
                   style={{
-                    background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-secondary)',
-                    padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '600', cursor: 'pointer'
-                  }}>View all</button>
-              </div>
-              {displayLeaves.length === 0 ? (
-                <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13px' }}>
-                  No recent leave requests found.
-                </div>
+                    marginLeft:
+                      'auto',
+                  }}
+                />
+              </button>
+
+              <button
+                type="button"
+                className="quick-action-button"
+                onClick={() =>
+                  router.push(
+                    '/employee/attendance'
+                  )
+                }
+              >
+                <CalendarDays
+                  size={16}
+                  color="#10b981"
+                />
+
+                <span>
+                  Attendance
+                </span>
+
+                <ArrowRight
+                  size={13}
+                  style={{
+                    marginLeft:
+                      'auto',
+                  }}
+                />
+              </button>
+
+              <button
+                type="button"
+                className="quick-action-button"
+                onClick={() =>
+                  router.push(
+                    '/employee/onboarding/profile/'
+                  )
+                }
+              >
+                <UserRound
+                  size={16}
+                  color="#3b82f6"
+                />
+
+                <span>
+                  My Profile
+                </span>
+
+                <ArrowRight
+                  size={13}
+                  style={{
+                    marginLeft:
+                      'auto',
+                  }}
+                />
+              </button>
+
+              <button
+                type="button"
+                className="quick-action-button"
+                onClick={() =>
+                  router.push(
+                    '/employee/notifications'
+                  )
+                }
+              >
+                <Bell
+                  size={16}
+                  color="#f59e0b"
+                />
+
+                <span>
+                  Notifications
+                </span>
+
+                <ArrowRight
+                  size={13}
+                  style={{
+                    marginLeft:
+                      'auto',
+                  }}
+                />
+              </button>
+            </div>
+          </div>
+
+          {/* =================================================
+              BOTTOM GRID
+          ================================================= */}
+
+          <div
+            className="employee-bottom-grid"
+            style={{
+              display: 'grid',
+              gridTemplateColumns:
+                '1fr 1fr',
+              gap: '18px',
+            }}
+          >
+            {/* RECENT LEAVES */}
+
+            <div
+              className="employee-card"
+              style={{
+                padding: '22px',
+                background:
+                  'var(--card-bg)',
+                border:
+                  '1px solid var(--card-border)',
+                borderRadius: '18px',
+                boxShadow:
+                  'var(--card-shadow)',
+              }}
+            >
+              <SectionHeader
+                icon={FileText}
+                title="Recent Leave Requests"
+                subtitle="Latest leave activity"
+                action="View all"
+                onAction={() =>
+                  router.push(
+                    '/employee/leave'
+                  )
+                }
+              />
+
+              {leaves.length ===
+              0 ? (
+                <EmptyState
+                  icon={FileText}
+                  title="No leave requests"
+                  text="You haven't submitted any leave requests yet."
+                />
               ) : (
-                displayLeaves.slice(0, 4).map((l, i) => (
-                  <div key={i} style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '12px 0', borderBottom: i < displayLeaves.length - 1 ? '1px solid var(--card-border)' : 'none',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                      <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(59, 130, 246, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6', fontSize: '13px', fontWeight: '700' }}>
-                        {user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'EMP'}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>{l.leaveType?.replace(/_/g, ' ')} Leave</div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{l.startDate} – {l.endDate}</div>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-                      <Badge status={l.status} />
-                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{l.totalDays} days</span>
-                    </div>
-                  </div>
-                ))
+                <div>
+                  {leaves
+                    .slice(0, 4)
+                    .map(
+                      (
+                        leave,
+                        index
+                      ) => (
+                        <div
+                          key={
+                            leave.id ||
+                            index
+                          }
+                          className="leave-request-row"
+                          style={{
+                            display:
+                              'flex',
+                            alignItems:
+                              'center',
+                            justifyContent:
+                              'space-between',
+                            gap: '15px',
+                            padding:
+                              '13px 0',
+                            borderBottom:
+                              index <
+                              Math.min(
+                                leaves.length,
+                                4
+                              ) -
+                                1
+                                ? '1px solid var(--card-border)'
+                                : 'none',
+                          }}
+                        >
+                          <div
+                            style={{
+                              display:
+                                'flex',
+                              alignItems:
+                                'center',
+                              gap: '11px',
+                              minWidth: 0,
+                            }}
+                          >
+                            <div
+                              style={{
+                                width:
+                                  '38px',
+                                height:
+                                  '38px',
+                                borderRadius:
+                                  '12px',
+                                background:
+                                  'rgba(139,92,246,.10)',
+                                color:
+                                  '#8b5cf6',
+                                display:
+                                  'flex',
+                                alignItems:
+                                  'center',
+                                justifyContent:
+                                  'center',
+                                flexShrink: 0,
+                              }}
+                            >
+                              <Palmtree
+                                size={
+                                  17
+                                }
+                              />
+                            </div>
+
+                            <div
+                              style={{
+                                minWidth:
+                                  0,
+                              }}
+                            >
+                              <div
+                                style={{
+                                  fontSize:
+                                    '11px',
+                                  fontWeight:
+                                    800,
+                                  color:
+                                    'var(--text-primary)',
+                                  whiteSpace:
+                                    'nowrap',
+                                  overflow:
+                                    'hidden',
+                                  textOverflow:
+                                    'ellipsis',
+                                }}
+                              >
+                                {leave.leaveType
+                                  ? leave.leaveType.replace(
+                                      /_/g,
+                                      ' '
+                                    )
+                                  : 'Leave'}{' '}
+                                Leave
+                              </div>
+
+                              <div
+                                style={{
+                                  fontSize:
+                                    '9px',
+                                  color:
+                                    'var(--text-secondary)',
+                                  marginTop:
+                                    '4px',
+                                }}
+                              >
+                                {leave.startDate ||
+                                  '--'}{' '}
+                                –{' '}
+                                {leave.endDate ||
+                                  '--'}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              display:
+                                'flex',
+                              alignItems:
+                                'center',
+                              gap: '10px',
+                              flexShrink: 0,
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize:
+                                  '10px',
+                                color:
+                                  'var(--text-secondary)',
+                                fontWeight:
+                                  700,
+                              }}
+                            >
+                              {leave.totalDays ||
+                                0}{' '}
+                              days
+                            </span>
+
+                            <StatusBadge
+                              status={
+                                leave.status
+                              }
+                            />
+                          </div>
+                        </div>
+                      )
+                    )}
+                </div>
               )}
             </div>
 
-            {/* Recent Notifications */}
-            <div style={{ background: 'var(--card-bg)', borderRadius: '12px', padding: '20px', border: '1px solid var(--card-border)', boxShadow: 'var(--card-shadow)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{
-                    width: '24px', height: '24px', background: 'rgba(245, 158, 11, 0.15)',
-                    borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center'
-                  }}>
-                    <Bell size={14} color="#f59e0b" />
-                  </div>
-                  <h3 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)', display: 'flex', alignItems: 'center' }}>
-                    Recent Notifications
-                  </h3>
-                  {unreadCount > 0 && (
-                    <span style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: '700' }}>
-                      {unreadCount} unread
-                    </span>
-                  )}
-                </div>
-                <button
-                  onClick={() => router.push('/employee/notifications')}
-                  style={{
-                    background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-secondary)',
-                    padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '600', cursor: 'pointer'
-                  }}>View all</button>
-              </div>
-              {displayNotifs.length === 0 ? (
-                <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13px' }}>
-                  You have no new notifications.
-                </div>
+            {/* NOTIFICATIONS */}
+
+            <div
+              className="employee-card"
+              style={{
+                padding: '22px',
+                background:
+                  'var(--card-bg)',
+                border:
+                  '1px solid var(--card-border)',
+                borderRadius: '18px',
+                boxShadow:
+                  'var(--card-shadow)',
+              }}
+            >
+              <SectionHeader
+                icon={Bell}
+                title="Recent Notifications"
+                subtitle="Stay up to date"
+                action="View all"
+                onAction={() =>
+                  router.push(
+                    '/employee/notifications'
+                  )
+                }
+              />
+
+              {notifications.length ===
+              0 ? (
+                <EmptyState
+                  icon={Bell}
+                  title="You're all caught up"
+                  text="There are no new notifications to show."
+                />
               ) : (
-                displayNotifs.slice(0, 4).map((n, i) => (
-                  <div key={i} style={{
-                    display: 'flex', gap: '14px', alignItems: 'center',
-                    padding: '14px 0', borderBottom: i < 3 ? '1px solid var(--card-border)' : 'none',
-                  }}>
-                    <div style={{
-                      width: '36px', height: '36px', borderRadius: '50%',
-                      background: 'rgba(139, 92, 246, 0.15)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'
-                    }}>
-                      <Bell size={16} color="#8b5cf6" />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '4px' }}>{n.title || n.message}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{n.title ? n.message : new Date(n.createdAt).toLocaleDateString()}</div>
-                    </div>
-                    <div style={{
-                      width: '8px', height: '8px', borderRadius: '50%',
-                      background: n.isRead ? 'transparent' : '#10b981',
-                      flexShrink: 0
-                    }} />
-                  </div>
-                ))
+                <div>
+                  {notifications
+                    .slice(0, 4)
+                    .map(
+                      (
+                        notification,
+                        index
+                      ) => (
+                        <div
+                          key={
+                            notification.id ||
+                            index
+                          }
+                          className="notification-row"
+                          style={{
+                            display:
+                              'flex',
+                            gap: '11px',
+                            alignItems:
+                              'center',
+                            padding:
+                              '13px 0',
+                            borderBottom:
+                              index <
+                              Math.min(
+                                notifications.length,
+                                4
+                              ) -
+                                1
+                                ? '1px solid var(--card-border)'
+                                : 'none',
+                          }}
+                        >
+                          <div
+                            style={{
+                              width:
+                                '38px',
+                              height:
+                                '38px',
+                              borderRadius:
+                                '12px',
+                              background:
+                                notification.isRead
+                                  ? 'var(--bg-primary)'
+                                  : 'rgba(59,130,246,.10)',
+                              color:
+                                notification.isRead
+                                  ? 'var(--text-secondary)'
+                                  : '#3b82f6',
+                              display:
+                                'flex',
+                              alignItems:
+                                'center',
+                              justifyContent:
+                                'center',
+                              flexShrink: 0,
+                            }}
+                          >
+                            <Bell
+                              size={
+                                17
+                              }
+                            />
+                          </div>
+
+                          <div
+                            style={{
+                              flex: 1,
+                              minWidth: 0,
+                            }}
+                          >
+                            <div
+                              style={{
+                                display:
+                                  'flex',
+                                alignItems:
+                                  'center',
+                                gap: '7px',
+                              }}
+                            >
+                              <div
+                                style={{
+                                  fontSize:
+                                    '11px',
+                                  fontWeight:
+                                    800,
+                                  color:
+                                    'var(--text-primary)',
+                                  whiteSpace:
+                                    'nowrap',
+                                  overflow:
+                                    'hidden',
+                                  textOverflow:
+                                    'ellipsis',
+                                }}
+                              >
+                                {notification.title ||
+                                  'Notification'}
+                              </div>
+
+                              {!notification.isRead && (
+                                <span
+                                  style={{
+                                    width:
+                                      '6px',
+                                    height:
+                                      '6px',
+                                    borderRadius:
+                                      '50%',
+                                    background:
+                                      '#3b82f6',
+                                    flexShrink:
+                                      0,
+                                  }}
+                                />
+                              )}
+                            </div>
+
+                            <div
+                              style={{
+                                fontSize:
+                                  '9px',
+                                color:
+                                  'var(--text-secondary)',
+                                marginTop:
+                                  '4px',
+                                whiteSpace:
+                                  'nowrap',
+                                overflow:
+                                  'hidden',
+                                textOverflow:
+                                  'ellipsis',
+                              }}
+                            >
+                              {notification.message ||
+                                ''}
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              fontSize:
+                                '9px',
+                              color:
+                                'var(--text-secondary)',
+                              flexShrink: 0,
+                            }}
+                          >
+                            {notification.createdAt
+                              ? new Date(
+                                  notification.createdAt
+                                ).toLocaleDateString(
+                                  'en-IN',
+                                  {
+                                    day: '2-digit',
+                                    month:
+                                      'short',
+                                  }
+                                )
+                              : ''}
+                          </div>
+                        </div>
+                      )
+                    )}
+                </div>
               )}
             </div>
+          </div>
+
+          {/* =================================================
+              FOOTER
+          ================================================= */}
+
+          <div
+            style={{
+              marginTop: '18px',
+              display: 'flex',
+              justifyContent:
+                'center',
+              alignItems:
+                'center',
+              gap: '6px',
+              color:
+                'var(--text-secondary)',
+              fontSize: '9px',
+            }}
+          >
+            <TrendingUp
+              size={12}
+            />
+
+            Your dashboard is synced
+            with the latest HRMS data.
           </div>
         </>
       )}
