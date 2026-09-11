@@ -835,34 +835,6 @@ export default function EmployeeNotificationsPage() {
 
             >
 
-              
-     feature/employee-notification-navigation
-              <button
-
-                onClick={() =>
-                  setSelectedNotification(null)
-                }
-
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  border: 'none',
-                  borderRadius: '8px',
-                  background: 'var(--background)',
-                  color: 'var(--text-primary)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-
-                aria-label="Back"
-
-              >
-                <X size={18} />
-              </button>
-
-
               <p
 
                 style={{
@@ -875,32 +847,6 @@ export default function EmployeeNotificationsPage() {
               >
                 Notification
               </p>
-
-
-              <button
-
-                onClick={() =>
-                  setSelectedNotification(null)
-                }
-
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  border: 'none',
-                  borderRadius: '8px',
-                  background: 'transparent',
-                  color: 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-
-                aria-label="Close"
-
-              >
-                <X size={18} />
-              </button>
 
             </div>
 

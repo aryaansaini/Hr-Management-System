@@ -459,52 +459,42 @@ export default function AdminLeavePage() {
    * ============================================================
    */
 
-  const handleDelete = async (
-    leaveId
-  ) => {
-    const confirmed =
-      window.confirm(
-        'Are you sure you want to delete this leave request?'
-      );
+  const handleDelete = async (leaveId) => {
+    const confirmed = window.confirm(
+      'Are you sure you want to delete this leave request?'
+    );
 
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
     setDeleting(leaveId);
 
     try {
-      await api.delete(
-        `/api/leaves/${leaveId}`
-      );
+      await api.delete(`/api/leaves/${leaveId}`);
 
-      toast.success(
-        'Leave deleted successfully'
-      );
+      toast.success('Leave deleted successfully');
 
-      /*
-       * Reset to first page after deletion.
-       */
       setPage(0);
-
-      /*
-       * Allow current tab to reload.
-       */
       loadedTabs.current.delete(tab);
 
       await fetchData();
-
     } catch (err) {
-      console.error(
-        'Delete leave error:',
-        err
-      );
+      console.error('Delete leave error:', err);
 
-      toast.error(
-        err.response?.data?.message ||
-        'Failed to delete leave request'
-      );
+      const message = err.response?.data?.message;
 
+      if (message?.includes('linked to payroll')) {
+        toast.error(
+          '❌ Cannot delete: Leave is linked to payroll'
+        );
+      } else if (message?.includes('balance')) {
+        toast.error(
+          '❌ Cannot delete: Balance restoration failed'
+        );
+      } else {
+        toast.error(
+          message || 'Failed to delete leave request'
+        );
+      }
     } finally {
       setDeleting(null);
     }
@@ -512,22 +502,11 @@ export default function AdminLeavePage() {
 
   /*
    * ============================================================
-   * CLEAR ALL FOR CURRENT TAB
+   * CLEAR ALL LEAVES
    * ============================================================
    */
 
   const handleClearAll = async () => {
-    if (
-      !currentData ||
-      currentData.length === 0
-    ) {
-      toast.info(
-        'There are no leave requests to clear.'
-      );
-
-      return;
-    }
-
     /*
      * Frontend:
      * CANCELLATIONS
@@ -535,6 +514,7 @@ export default function AdminLeavePage() {
      * Backend:
      * CANCELLATION_PENDING
      */
+
     const deleteStatus =
       tab === 'CANCELLATIONS'
         ? 'CANCELLATION_PENDING'
@@ -549,10 +529,9 @@ export default function AdminLeavePage() {
             ? 'Rejected'
             : 'Cancellations';
 
-    const confirmed =
-      window.confirm(
-        `Are you sure you want to clear all ${tabLabel} leave requests?`
-      );
+    const confirmed = window.confirm(
+      `Are you sure you want to clear all ${tabLabel} leave requests?`
+    );
 
     if (!confirmed) {
       return;
@@ -1147,283 +1126,196 @@ export default function AdminLeavePage() {
                       </div>
                     </div>
 
-                  {/* ====================================================
-                      TYPE
-                      ==================================================== */}
+                    {/* ====================================================
+                        TYPE
+                        ==================================================== */}
 
-                  <div
-                    style={{
-                      fontSize: '13px',
-                      fontWeight: 700,
-                      color:
-                        'var(--text-primary)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px'
-                    }}
-                  >
-                    <span>
-                      {m.icon}
-                    </span>
+                    <div
+                      style={{
+                        fontSize: '13px',
+                        fontWeight: 700,
+                        color:
+                          'var(--text-primary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <span>
+                        {m.icon}
+                      </span>
 
-                    {l.leaveType}
-                  </div>
+                      {l.leaveType}
+                    </div>
 
-                  {/* FROM */}
+                    {/* FROM */}
 
-                  <div
-                    style={{
-                      fontSize: '12.5px',
-                      color:
-                        'var(--text-secondary)'
-                    }}
-                  >
-                    {l.startDate}
-                  </div>
+                    <div
+                      style={{
+                        fontSize: '12.5px',
+                        color:
+                          'var(--text-secondary)'
+                      }}
+                    >
+                      {l.startDate}
+                    </div>
 
-                  {/* TO */}
+                    {/* TO */}
 
-                  <div
-                    style={{
-                      fontSize: '12.5px',
-                      color:
-                        'var(--text-secondary)'
-                    }}
-                  >
-                    {l.endDate}
-                  </div>
+                    <div
+                      style={{
+                        fontSize: '12.5px',
+                        color:
+                          'var(--text-secondary)'
+                      }}
+                    >
+                      {l.endDate}
+                    </div>
 
-                  {/* DAYS */}
+                    {/* DAYS */}
 
-                  <div
-                    style={{
-                      fontSize: '14px',
-                      fontWeight: 800,
-                      color:
-                        'var(--text-primary)'
-                    }}
-                  >
-                    {l.totalDays}
-                  </div>
+                    <div
+                      style={{
+                        fontSize: '14px',
+                        fontWeight: 800,
+                        color:
+                          'var(--text-primary)'
+                      }}
+                    >
+                      {l.totalDays}
+                    </div>
 
-                  {/* STATUS */}
+                    {/* STATUS */}
 
-                  <StatusPill
-                    status={l.status}
-                  />
+                    <StatusPill
+                      status={l.status}
+                    />
 
-                  {/* ====================================================
-                      ACTIONS / REVIEWED BY
-                      ==================================================== */}
+                    {/* ====================================================
+                        ACTIONS / REVIEWED BY
+                        ==================================================== */}
 
-                  <div>
+                    <div>
 
-                    {/* PENDING */}
+                      {/* PENDING */}
 
-                    {tab === 'PENDING' && (
-                      <div
-                        style={{
-                          display: 'flex',
-                          gap: '8px',
-                          flexWrap: 'wrap'
-                        }}
-                      >
-                        <button
-                          onClick={() =>
-                            handleAction(
-                              l.id,
-                              'APPROVED'
-                            )
-                          }
-                          disabled={
-                            !!actioning ||
-                            !!deleting ||
-                            clearingAll
-                          }
-                          style={{
-                            padding:
-                              '6px 14px',
-
-                            background:
-                              'rgba(16, 185, 129, 0.15)',
-
-                            color:
-                              '#10b981',
-
-                            border:
-                              '1px solid #10b981',
-
-                            borderRadius:
-                              '6px',
-
-                            fontSize:
-                              '12px',
-
-                            fontWeight:
-                              '600',
-
-                            cursor:
-                              'pointer',
-
-                            whiteSpace:
-                              'nowrap',
-
-                            display:
-                              'flex',
-
-                            alignItems:
-                              'center',
-
-                            justifyContent:
-                              'center',
-
-                            transition:
-                              'background-color 0.2s',
-
-                            opacity:
-                              actioning
-                                ? 0.7
-                                : 1
-                          }}
-                        >
-                          {actioning ===
-                            l.id +
-                            'APPROVED' ? (
-                            <>
-                              <Loader2
-                                size={12}
-                                className="animate-spin"
-                                style={{
-                                  display:
-                                    'inline',
-                                  marginRight:
-                                    '4px'
-                                }}
-                              />
-
-                              Processing...
-                            </>
-                          ) : (
-                            <>
-                              <Check
-                                size={12}
-                                style={{
-                                  display:
-                                    'inline',
-                                  marginRight:
-                                    '4px'
-                                }}
-                              />
-
-                              Approve
-                            </>
-                          )}
-                        </button>
-
-                        <button
-                          onClick={() =>
-                            handleAction(
-                              l.id,
-                              'REJECTED'
-                            )
-                          }
-                          disabled={
-                            !!actioning ||
-                            !!deleting ||
-                            clearingAll
-                          }
-                          style={{
-                            padding:
-                              '6px 14px',
-
-                            background:
-                              'rgba(239, 68, 68, 0.15)',
-
-                            color:
-                              '#ef4444',
-
-                            border:
-                              '1px solid #ef4444',
-
-                            borderRadius:
-                              '6px',
-
-                            fontSize:
-                              '12px',
-
-                            fontWeight:
-                              '600',
-
-                            cursor:
-                              'pointer',
-
-                            display:
-                              'flex',
-
-                            alignItems:
-                              'center',
-
-                            justifyContent:
-                              'center',
-
-                            transition:
-                              'background-color 0.2s',
-
-                            opacity:
-                              actioning
-                                ? 0.7
-                                : 1
-                          }}
-                        >
-                          {actioning ===
-                            l.id +
-                            'REJECTED' ? (
-                            <>
-                              <Loader2
-                                size={12}
-                                className="animate-spin"
-                                style={{
-                                  display:
-                                    'inline',
-                                  marginRight:
-                                    '4px'
-                                }}
-                              />
-
-                              Processing...
-                            </>
-                          ) : (
-                            <>
-                              <X
-                                size={12}
-                                style={{
-                                  display:
-                                    'inline',
-                                  marginRight:
-                                    '4px'
-                                }}
-                              />
-
-                              Reject
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    )}
-
-                    {/* ==================================================
-                        CANCELLATIONS
-                        ================================================== */}
-
-                    {tab ===
-                      'CANCELLATIONS' && (
+                      {tab === 'PENDING' && (
                         <div
                           style={{
-                            display:
-                              'flex',
+                            display: 'flex',
                             gap: '8px',
-                            flexWrap:
-                              'wrap'
+                            flexWrap: 'wrap'
+                          }}
+                        >
+                          <button
+                            onClick={() =>
+                              handleAction(
+                                l.id,
+                                'APPROVED'
+                              )
+                            }
+                            disabled={
+                              !!actioning ||
+                              !!deleting ||
+                              clearingAll
+                            }
+                            style={{
+                              padding: '6px 14px',
+                              background: 'rgba(16, 185, 129, 0.15)',
+                              color: '#10b981',
+                              border: '1px solid #10b981',
+                              borderRadius: '6px',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'background-color 0.2s',
+                              opacity: actioning ? 0.7 : 1
+                            }}
+                          >
+                            {actioning === l.id + 'APPROVED' ? (
+                              <>
+                                <Loader2
+                                  size={12}
+                                  className="animate-spin"
+                                  style={{ display: 'inline', marginRight: '4px' }}
+                                />
+                                Processing...
+                              </>
+                            ) : (
+                              <>
+                                <Check
+                                  size={12}
+                                  style={{ display: 'inline', marginRight: '4px' }}
+                                />
+                                Approve
+                              </>
+                            )}
+                          </button>
+
+                          <button
+                            onClick={() =>
+                              handleAction(
+                                l.id,
+                                'REJECTED'
+                              )
+                            }
+                            disabled={
+                              !!actioning ||
+                              !!deleting ||
+                              clearingAll
+                            }
+                            style={{
+                              padding: '6px 14px',
+                              background: 'rgba(239, 68, 68, 0.15)',
+                              color: '#ef4444',
+                              border: '1px solid #ef4444',
+                              borderRadius: '6px',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'background-color 0.2s',
+                              opacity: actioning ? 0.7 : 1
+                            }}
+                          >
+                            {actioning === l.id + 'REJECTED' ? (
+                              <>
+                                <Loader2
+                                  size={12}
+                                  className="animate-spin"
+                                  style={{ display: 'inline', marginRight: '4px' }}
+                                />
+                                Processing...
+                              </>
+                            ) : (
+                              <>
+                                <X
+                                  size={12}
+                                  style={{ display: 'inline', marginRight: '4px' }}
+                                />
+                                Reject
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
+
+                      {/* ==================================================
+                          CANCELLATIONS
+                          ================================================== */}
+
+                      {tab === 'CANCELLATIONS' && (
+                        <div
+                          style={{
+                            display: 'flex',
+                            gap: '8px',
+                            flexWrap: 'wrap'
                           }}
                         >
                           <button
@@ -1439,80 +1331,37 @@ export default function AdminLeavePage() {
                               clearingAll
                             }
                             style={{
-                              padding:
-                                '6px 14px',
-
-                              background:
-                                'rgba(16, 185, 129, 0.15)',
-
-                              color:
-                                '#10b981',
-
-                              border:
-                                '1px solid #10b981',
-
-                              borderRadius:
-                                '6px',
-
-                              fontSize:
-                                '12px',
-
-                              fontWeight:
-                                '600',
-
-                              cursor:
-                                'pointer',
-
-                              whiteSpace:
-                                'nowrap',
-
-                              display:
-                                'flex',
-
-                              alignItems:
-                                'center',
-
-                              justifyContent:
-                                'center',
-
-                              transition:
-                                'background-color 0.2s',
-
-                              opacity:
-                                actioning
-                                  ? 0.7
-                                  : 1
+                              padding: '6px 14px',
+                              background: 'rgba(16, 185, 129, 0.15)',
+                              color: '#10b981',
+                              border: '1px solid #10b981',
+                              borderRadius: '6px',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'background-color 0.2s',
+                              opacity: actioning ? 0.7 : 1
                             }}
                           >
-                            {actioning ===
-                              l.id +
-                              'true' ? (
+                            {actioning === l.id + 'true' ? (
                               <>
                                 <Loader2
                                   size={12}
                                   className="animate-spin"
-                                  style={{
-                                    display:
-                                      'inline',
-                                    marginRight:
-                                      '4px'
-                                  }}
+                                  style={{ display: 'inline', marginRight: '4px' }}
                                 />
-
                                 Processing...
                               </>
                             ) : (
                               <>
                                 <Check
                                   size={12}
-                                  style={{
-                                    display:
-                                      'inline',
-                                    marginRight:
-                                      '4px'
-                                  }}
+                                  style={{ display: 'inline', marginRight: '4px' }}
                                 />
-
                                 Confirm
                               </>
                             )}
@@ -1531,77 +1380,36 @@ export default function AdminLeavePage() {
                               clearingAll
                             }
                             style={{
-                              padding:
-                                '6px 14px',
-
-                              background:
-                                'rgba(239, 68, 68, 0.15)',
-
-                              color:
-                                '#ef4444',
-
-                              border:
-                                '1px solid #ef4444',
-
-                              borderRadius:
-                                '6px',
-
-                              fontSize:
-                                '12px',
-
-                              fontWeight:
-                                '600',
-
-                              cursor:
-                                'pointer',
-
-                              display:
-                                'flex',
-
-                              alignItems:
-                                'center',
-
-                              justifyContent:
-                                'center',
-
-                              transition:
-                                'background-color 0.2s',
-
-                              opacity:
-                                actioning
-                                  ? 0.7
-                                  : 1
+                              padding: '6px 14px',
+                              background: 'rgba(239, 68, 68, 0.15)',
+                              color: '#ef4444',
+                              border: '1px solid #ef4444',
+                              borderRadius: '6px',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'background-color 0.2s',
+                              opacity: actioning ? 0.7 : 1
                             }}
                           >
-                            {actioning ===
-                              l.id +
-                              'false' ? (
+                            {actioning === l.id + 'false' ? (
                               <>
                                 <Loader2
                                   size={12}
                                   className="animate-spin"
-                                  style={{
-                                    display:
-                                      'inline',
-                                    marginRight:
-                                      '4px'
-                                  }}
+                                  style={{ display: 'inline', marginRight: '4px' }}
                                 />
-
                                 Processing...
                               </>
                             ) : (
                               <>
                                 <X
                                   size={12}
-                                  style={{
-                                    display:
-                                      'inline',
-                                    marginRight:
-                                      '4px'
-                                  }}
+                                  style={{ display: 'inline', marginRight: '4px' }}
                                 />
-
                                 Deny
                               </>
                             )}
@@ -1609,130 +1417,103 @@ export default function AdminLeavePage() {
                         </div>
                       )}
 
-                    {/* ==================================================
-                        APPROVED / REJECTED
-                        ================================================== */}
+                      {/* ==================================================
+                          APPROVED / REJECTED
+                          ================================================== */}
 
-                    {(tab === 'APPROVED' ||
-                      tab === 'REJECTED') && (
-                      <div>
-                        <div
-                          style={{
-                            fontSize: '12px',
-                            fontWeight: 700,
-                            color:
-                              'var(--text-primary)'
-                          }}
-                        >
-                          {l.reviewedByName ||
-                            '—'}
-                        </div>
-
-                        {l.remarks && (
+                      {(tab === 'APPROVED' ||
+                        tab === 'REJECTED') && (
+                        <div>
                           <div
                             style={{
-                              fontSize:
-                                '11px',
-
-                              color:
-                                'var(--text-secondary)',
-
-                              fontStyle:
-                                'italic'
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              color: 'var(--text-primary)'
                             }}
                           >
-                            &quot;
-                            {l.remarks}
-                            &quot;
+                            {l.reviewedByName || '—'}
                           </div>
+
+                          {l.remarks && (
+                            <div
+                              style={{
+                                fontSize: '11px',
+                                color: 'var(--text-secondary)',
+                                fontStyle: 'italic'
+                              }}
+                            >
+                              &quot;{l.remarks}&quot;
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* ====================================================
+                        INDIVIDUAL DELETE BUTTON
+                        ==================================================== */}
+
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'flex-end'
+                      }}
+                    >
+                      <button
+                        className="leave-delete-button"
+                        onClick={() =>
+                          handleDelete(l.id)
+                        }
+                        disabled={
+                          deleting === l.id ||
+                          !!actioning ||
+                          clearingAll
+                        }
+                        title="Delete leave"
+                        style={{
+                          width: '38px',
+                          height: '38px',
+                          border: '1px solid var(--card-border)',
+                          background: 'transparent',
+                          color: '#EF4444',
+                          borderRadius: '10px',
+                          cursor:
+                            deleting === l.id ||
+                              !!actioning ||
+                              clearingAll
+                              ? 'not-allowed'
+                              : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          opacity:
+                            deleting === l.id ||
+                              !!actioning ||
+                              clearingAll
+                              ? 0.5
+                              : 1,
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        {deleting === l.id ? (
+                          <Loader2
+                            size={17}
+                            className="animate-spin"
+                          />
+                        ) : (
+                          <Trash2
+                            size={17}
+                          />
                         )}
-                      </div>
-                    )}
+                      </button>
+                    </div>
                   </div>
 
                   {/* ====================================================
-                      INDIVIDUAL DELETE BUTTON
+                      EXPANDED DETAILS PANEL
                       ==================================================== */}
-
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'flex-end'
-                    }}
-                  >
-                    <button
-                      className="leave-delete-button"
-                      onClick={() =>
-                        handleDelete(l.id)
-                      }
-                      disabled={
-                        deleting === l.id ||
-                        !!actioning ||
-                        clearingAll
-                      }
-                      title="Delete leave"
-                      style={{
-                        width: '34px',
-                        height: '32px',
-
-                        border:
-                          '1px solid var(--card-border)',
-
-                        background:
-                          'transparent',
-
-                        color:
-                          '#EF4444',
-
-                        borderRadius:
-                          '10px',
-
-                        cursor:
-                          deleting === l.id ||
-                            !!actioning ||
-                            clearingAll
-                            ? 'not-allowed'
-                            : 'pointer',
-
-                        display:
-                          'flex',
-
-                        alignItems:
-                          'center',
-
-                        justifyContent:
-                          'center',
-
-                        opacity:
-                          deleting === l.id ||
-                            !!actioning ||
-                            clearingAll
-                            ? 0.5
-                            : 1,
-
-                        transition:
-                          'all 0.2s'
-                      }}
-                    >
-                      {deleting === l.id ? (
-                        <Loader2
-                          size={15}
-                          className="animate-spin"
-                        />
-                      ) : (
-                        <Trash2
-                          size={15}
-                        />
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                {/* ====================================================
-                    EXPANDED DETAILS PANEL
-                    ==================================================== */}
-                {isExpanded && (
-                  <div
+                  {isExpanded && (
+                    <div
                       onClick={(e) => e.stopPropagation()}
                       style={{
                         padding: '18px 24px 22px 24px',
@@ -1784,49 +1565,26 @@ export default function AdminLeavePage() {
                     display: 'flex',
                     justifyContent: 'center',
                     gap: '8px',
-                    borderTop:
-                      '1px solid var(--card-border)'
+                    borderTop: '1px solid var(--card-border)'
                   }}
                 >
                   <button
                     onClick={() =>
-                      setPage(
-                        (p) =>
-                          Math.max(
-                            0,
-                            p - 1
-                          )
-                      )
+                      setPage((p) => Math.max(0, p - 1))
                     }
                     disabled={page === 0}
                     style={{
-                      padding:
-                        '6px 14px',
-
-                      border:
-                        '1px solid var(--card-border)',
-
-                      borderRadius:
-                        '8px',
-
-                      fontSize:
-                        '12px',
-
-                      fontWeight:
-                        700,
-
+                      padding: '6px 14px',
+                      border: '1px solid var(--card-border)',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontWeight: 700,
                       color:
                         page === 0
                           ? 'var(--text-muted)'
                           : 'var(--text-primary)',
-
-                      background:
-                        'var(--card-bg)',
-
-                      cursor:
-                        page === 0
-                          ? 'not-allowed'
-                          : 'pointer'
+                      background: 'var(--card-bg)',
+                      cursor: page === 0 ? 'not-allowed' : 'pointer'
                     }}
                   >
                     ← Prev
@@ -1834,65 +1592,31 @@ export default function AdminLeavePage() {
 
                   <span
                     style={{
-                      padding:
-                        '6px 14px',
-
-                      fontSize:
-                        '12px',
-
-                      color:
-                        'var(--text-muted)'
+                      padding: '6px 14px',
+                      fontSize: '12px',
+                      color: 'var(--text-muted)'
                     }}
                   >
-                    {page + 1} /{' '}
-                    {totalPages}
+                    {page + 1} / {totalPages}
                   </span>
 
                   <button
                     onClick={() =>
-                      setPage(
-                        (p) =>
-                          Math.min(
-                            totalPages -
-                            1,
-                            p + 1
-                          )
-                      )
+                      setPage((p) => Math.min(totalPages - 1, p + 1))
                     }
-                    disabled={
-                      page >=
-                      totalPages - 1
-                    }
+                    disabled={page >= totalPages - 1}
                     style={{
-                      padding:
-                        '6px 14px',
-
-                      border:
-                        '1px solid var(--card-border)',
-
-                      borderRadius:
-                        '8px',
-
-                      fontSize:
-                        '12px',
-
-                      fontWeight:
-                        700,
-
+                      padding: '6px 14px',
+                      border: '1px solid var(--card-border)',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontWeight: 700,
                       color:
-                        page >=
-                          totalPages - 1
+                        page >= totalPages - 1
                           ? 'var(--text-muted)'
                           : 'var(--text-primary)',
-
-                      background:
-                        'var(--card-bg)',
-
-                      cursor:
-                        page >=
-                          totalPages - 1
-                          ? 'not-allowed'
-                          : 'pointer'
+                      background: 'var(--card-bg)',
+                      cursor: page >= totalPages - 1 ? 'not-allowed' : 'pointer'
                     }}
                   >
                     Next →
