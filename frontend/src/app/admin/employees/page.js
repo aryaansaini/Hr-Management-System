@@ -1,6 +1,8 @@
 'use client';
+
 import { useSelector } from 'react-redux';
 import { useState, useEffect, useCallback } from 'react';
+
 import {
     getAllEmployees,
     searchEmployees,
@@ -8,15 +10,40 @@ import {
     updateEmployee,
     deleteEmployee,
 } from '@/lib/adminApi';
+
 import toast from 'react-hot-toast';
-import { FaEye, FaEyeSlash } from 'react-icons/fa';
-import { Users, AlertTriangle, Loader2 } from 'lucide-react';
+
+import {
+    FaEye,
+    FaEyeSlash,
+} from 'react-icons/fa';
+
+import {
+    Users,
+    AlertTriangle,
+    Loader2,
+    Search,
+    Plus,
+    X,
+    Pencil,
+    Trash2,
+    ChevronLeft,
+    ChevronRight,
+    ShieldCheck,
+    UserCog,
+    UserRound,
+} from 'lucide-react';
+
 
 /* =========================================================
    BADGE
 ========================================================= */
 
 function Badge({ status }) {
+    const normalizedStatus = String(status || 'EMPLOYEE')
+        .replace(/^ROLE_/i, '')
+        .toUpperCase();
+
     const badgeStyles = {
         ACTIVE:
             'bg-green-100 text-green-700 border-green-200 dark:bg-[#173404] dark:text-[#97C459] dark:border-[#27500A]',
@@ -48,16 +75,17 @@ function Badge({ status }) {
                 font-bold
                 border
                 shrink-0
-                ${badgeStyles[status] || badgeStyles.EMPLOYEE}
+                ${badgeStyles[normalizedStatus] || badgeStyles.EMPLOYEE}
             `}
         >
-            {status}
+            {normalizedStatus}
         </span>
     );
 }
 
+
 /* =========================================================
-   INPUT
+   INPUT CLASS
 ========================================================= */
 
 const INPUT_CLASS = `
@@ -84,6 +112,11 @@ const INPUT_CLASS = `
     [&::-ms-reveal]:hidden
     [&::-ms-clear]:hidden
 `;
+
+
+/* =========================================================
+   INPUT FIELD
+========================================================= */
 
 function InputField({
     label,
@@ -128,8 +161,8 @@ function InputField({
                 maxLength={maxLength}
                 inputMode={numericOnly ? 'numeric' : undefined}
                 className={`${INPUT_CLASS} ${inputClassName}`}
-                onChange={(e) => {
-                    let newValue = e.target.value;
+                onChange={(event) => {
+                    let newValue = event.target.value;
 
                     if (numericOnly) {
                         newValue = newValue.replace(/[^0-9]/g, '');
@@ -141,18 +174,28 @@ function InputField({
 
                     onChange(name, newValue);
                 }}
-                onKeyPress={(e) => {
+                onKeyDown={(event) => {
                     if (
                         numericOnly &&
-                        !/[0-9]/.test(e.key)
+                        !/[0-9]/.test(event.key) &&
+                        ![
+                            'Backspace',
+                            'Delete',
+                            'ArrowLeft',
+                            'ArrowRight',
+                            'Tab',
+                            'Home',
+                            'End',
+                        ].includes(event.key)
                     ) {
-                        e.preventDefault();
+                        event.preventDefault();
                     }
                 }}
             />
         </div>
     );
 }
+
 
 /* =========================================================
    EMPTY FORM
@@ -173,25 +216,40 @@ const EMPTY_FORM = {
     role: 'EMPLOYEE',
 };
 
+
 /* =========================================================
    MAIN PAGE
 ========================================================= */
 
 export default function EmployeeManagementPage() {
+
+    /* =====================================================
+       EMPLOYEE STATE
+    ===================================================== */
+
     const [employees, setEmployees] = useState([]);
 
     const [loading, setLoading] = useState(true);
+
     const [searching, setSearching] = useState(false);
 
     const [search, setSearch] = useState('');
 
     const [page, setPage] = useState(0);
+
     const [totalPages, setTotalPages] = useState(0);
+
     const [totalElements, setTotalElements] = useState(0);
+
+
+    /* =====================================================
+       FORM STATE
+    ===================================================== */
 
     const [showForm, setShowForm] = useState(false);
 
     const [editMode, setEditMode] = useState(false);
+
     const [editId, setEditId] = useState(null);
 
     const [form, setForm] = useState(EMPTY_FORM);
@@ -200,51 +258,101 @@ export default function EmployeeManagementPage() {
 
     const [showPassword, setShowPassword] = useState(false);
 
+
+    /* =====================================================
+       DELETE STATE
+    ===================================================== */
+
     const [showDeleteConfirm, setShowDeleteConfirm] =
         useState(null);
 
     const [deleting, setDeleting] = useState(null);
 
+
     /* =====================================================
-       CURRENT USER ROLE (from Redux auth slice)
-       Used to gate the delete action for non-admins.
+       CURRENT USER ROLE
+       
+       Supports:
+       ADMIN
+       ROLE_ADMIN
+       HR
+       ROLE_HR
+       HR_MANAGER
+       ROLE_HR_MANAGER
+       HUMAN_RESOURCE
+       HUMANRESOURCE
+
+       The original implementation only checked:
+       state.auth.user.role
+
+       This version safely handles the common Redux
+       authority structures as well.
     ===================================================== */
 
-    const currentUserRole = useSelector((state) => state.auth.user?.role);
+    const rawUserRole = useSelector(
+        (state) =>
+            state.auth?.user?.role ||
+            state.auth?.user?.roleName ||
+            state.auth?.user?.authority ||
+            state.auth?.user?.authorities?.[0]?.authority ||
+            state.auth?.user?.authorities?.[0] ||
+            ''
+    );
+
+    const normalizedUserRole = String(rawUserRole || '')
+        .replace(/^ROLE_/i, '')
+        .trim()
+        .toUpperCase();
+
+    const currentUserRole =
+        normalizedUserRole.includes('ADMIN')
+            ? 'ADMIN'
+            : normalizedUserRole === 'HR' ||
+                normalizedUserRole.includes('HR_MANAGER') ||
+                normalizedUserRole.includes('HRMANAGER') ||
+                normalizedUserRole.includes('HUMAN_RESOURCE') ||
+                normalizedUserRole.includes('HUMANRESOURCE')
+                ? 'HR'
+                : normalizedUserRole || 'EMPLOYEE';
+
+    const isAdmin = currentUserRole === 'ADMIN';
+
+    const isHR = currentUserRole === 'HR';
+
 
     /* =====================================================
        TABLE COLUMNS
-
-       IMPORTANT:
-       minmax(0, ...) prevents content from forcing
-       the page wider.
     ===================================================== */
 
     const tableColumns =
         '88px minmax(190px, 2fr) minmax(120px, 1.2fr) minmax(140px, 1.2fr) 120px 115px 142px';
 
+
     /* =====================================================
        SORT EMPLOYEES
     ===================================================== */
 
-    const sortEmployees = (list) => {
+    const sortEmployees = useCallback((list) => {
         return [...list].sort((a, b) => {
             const empA = parseInt(
-                (a.employeeId || '').replace('EMP', ''),
+                String(a.employeeId || '')
+                    .replace(/^EMP/i, ''),
                 10
             );
 
             const empB = parseInt(
-                (b.employeeId || '').replace('EMP', ''),
+                String(b.employeeId || '')
+                    .replace(/^EMP/i, ''),
                 10
             );
 
             return (
-                (isNaN(empA) ? 0 : empA) -
-                (isNaN(empB) ? 0 : empB)
+                (Number.isNaN(empA) ? 0 : empA) -
+                (Number.isNaN(empB) ? 0 : empB)
             );
         });
-    };
+    }, []);
+
 
     /* =====================================================
        GET ALL EMPLOYEES
@@ -265,27 +373,40 @@ export default function EmployeeManagementPage() {
 
             setEmployees(sortEmployees(content));
 
-            setTotalPages(data?.totalPages || 0);
+            setTotalPages(
+                Number(data?.totalPages || 0)
+            );
 
             setTotalElements(
-                data?.totalElements || 0
+                Number(data?.totalElements || 0)
             );
+
         } catch (error) {
-            console.error(error);
+            console.error(
+                'Fetch employees error:',
+                error
+            );
 
             toast.error(
+                error?.response?.data?.message ||
                 'Failed to load employees'
             );
+
         } finally {
             setLoading(false);
         }
-    }, [page]);
+    }, [
+        page,
+        sortEmployees,
+    ]);
+
 
     /* =====================================================
-       SEARCH
+       SEARCH EMPLOYEES
     ===================================================== */
 
     const performSearch = useCallback(async () => {
+
         if (!search.trim()) {
             return;
         }
@@ -294,7 +415,7 @@ export default function EmployeeManagementPage() {
 
         try {
             const response = await searchEmployees(
-                search,
+                search.trim(),
                 page,
                 10
             );
@@ -306,22 +427,34 @@ export default function EmployeeManagementPage() {
             setEmployees(sortEmployees(content));
 
             setTotalPages(
-                data?.totalPages || 0
+                Number(data?.totalPages || 0)
             );
 
             setTotalElements(
-                data?.totalElements || 0
+                Number(data?.totalElements || 0)
             );
+
         } catch (error) {
-            console.error(error);
+            console.error(
+                'Search employees error:',
+                error
+            );
 
             toast.error(
+                error?.response?.data?.message ||
                 'Search failed'
             );
+
         } finally {
             setSearching(false);
         }
-    }, [search, page]);
+
+    }, [
+        search,
+        page,
+        sortEmployees,
+    ]);
+
 
     /* =====================================================
        LOAD DATA
@@ -329,14 +462,19 @@ export default function EmployeeManagementPage() {
 
     useEffect(() => {
         const timer = setTimeout(() => {
+
             if (search.trim()) {
                 performSearch();
             } else {
                 fetchEmployees();
             }
+
         }, search.trim() ? 400 : 0);
 
-        return () => clearTimeout(timer);
+        return () => {
+            clearTimeout(timer);
+        };
+
     }, [
         search,
         page,
@@ -344,35 +482,49 @@ export default function EmployeeManagementPage() {
         performSearch,
     ]);
 
+
     /* =====================================================
        FORM CHANGE
     ===================================================== */
 
-    const handleFieldChange = (name, value) => {
+    const handleFieldChange = (
+        name,
+        value
+    ) => {
         setForm((previous) => ({
             ...previous,
             [name]: value,
         }));
     };
 
+
     /* =====================================================
-       OPEN ADD
+       OPEN ADD FORM
     ===================================================== */
 
     const openAddForm = () => {
         setEditMode(false);
+
         setEditId(null);
-        setForm(EMPTY_FORM);
+
+        setForm({
+            ...EMPTY_FORM,
+        });
+
         setShowPassword(false);
+
         setShowForm(true);
     };
 
+
     /* =====================================================
-       OPEN EDIT
+       OPEN EDIT FORM
     ===================================================== */
 
     const openEditForm = (employee) => {
+
         setEditMode(true);
+
         setEditId(employee.id);
 
         setForm({
@@ -400,7 +552,7 @@ export default function EmployeeManagementPage() {
                 employee.designation || '',
 
             basicSalary:
-                employee.basicSalary || '',
+                employee.basicSalary ?? '',
 
             dateOfJoining:
                 employee.dateOfJoining || '',
@@ -409,18 +561,46 @@ export default function EmployeeManagementPage() {
                 employee.dateOfBirth || '',
 
             role:
-                employee.role || 'EMPLOYEE',
+                String(employee.role || 'EMPLOYEE')
+                    .replace(/^ROLE_/i, '')
+                    .toUpperCase(),
         });
 
         setShowPassword(false);
+
         setShowForm(true);
     };
+
+
+    /* =====================================================
+       CLOSE FORM
+    ===================================================== */
+
+    const closeForm = () => {
+        if (submitting) {
+            return;
+        }
+
+        setShowForm(false);
+
+        setEditMode(false);
+
+        setEditId(null);
+
+        setForm({
+            ...EMPTY_FORM,
+        });
+
+        setShowPassword(false);
+    };
+
 
     /* =====================================================
        SUBMIT
     ===================================================== */
 
     const handleSubmit = async (event) => {
+
         event.preventDefault();
 
         if (
@@ -434,18 +614,36 @@ export default function EmployeeManagementPage() {
             return;
         }
 
+        if (
+            !editMode &&
+            (!form.password ||
+                form.password.length < 8)
+        ) {
+            toast.error(
+                'Password must be at least 8 characters'
+            );
+
+            return;
+        }
+
         setSubmitting(true);
 
         try {
+
             const payload = {
                 ...form,
 
-                basicSalary: form.basicSalary
-                    ? parseFloat(form.basicSalary)
-                    : 0,
+                basicSalary:
+                    form.basicSalary !== ''
+                        ? parseFloat(
+                            form.basicSalary
+                        )
+                        : 0,
             };
 
+
             if (editMode) {
+
                 if (!payload.password) {
                     delete payload.password;
                 }
@@ -458,96 +656,239 @@ export default function EmployeeManagementPage() {
                 toast.success(
                     'Employee updated successfully!'
                 );
+
             } else {
-                await createEmployee(payload);
+
+                await createEmployee(
+                    payload
+                );
 
                 toast.success(
                     'Employee created successfully!'
                 );
             }
 
+
             setShowForm(false);
+
             setEditMode(false);
+
             setEditId(null);
-            setForm(EMPTY_FORM);
+
+            setForm({
+                ...EMPTY_FORM,
+            });
+
+            setShowPassword(false);
 
             await fetchEmployees();
+
         } catch (error) {
-            console.error(error);
+
+            console.error(
+                'Employee save error:',
+                error
+            );
 
             toast.error(
                 error?.response?.data?.message ||
                 'Operation failed'
             );
+
         } finally {
             setSubmitting(false);
         }
     };
 
+
     /* =====================================================
        DELETE
+       
+       IMPORTANT:
+       Only ADMIN can delete.
+
+       HR never reaches the API because the button is
+       hidden and this additional guard protects the
+       handler as well.
     ===================================================== */
 
     const handleDelete = async (employee) => {
-        const employeeId = employee?.id ?? employee?.employeeId;
+
+        const employeeId =
+            employee?.id ??
+            employee?.employeeId;
 
         if (!employeeId) {
-            console.error('Delete failed: Employee ID is missing', employee);
-            toast.error('Unable to delete employee: Employee ID is missing.');
+
+            console.error(
+                'Delete failed: Employee ID is missing',
+                employee
+            );
+
+            toast.error(
+                'Unable to delete employee: Employee ID is missing.'
+            );
+
             return;
         }
 
-        // TEMPORARY: block non-admins from deleting until backend is redeployed
-        // with the @PreAuthorize("hasRole('ADMIN')") restriction on DELETE /api/employees/{id}
-        if (currentUserRole !== 'ADMIN') {
+
+        /* -----------------------------------------------
+           ADMIN ONLY
+        ------------------------------------------------ */
+
+        if (!isAdmin) {
+
             toast.error(
                 "You don't have permission to delete employees. Only Admin can delete employees.",
-                { duration: 5000 }
+                {
+                    duration: 5000,
+                }
             );
+
             setShowDeleteConfirm(null);
+
             return;
         }
+
 
         setDeleting(employeeId);
 
         try {
-            await deleteEmployee(employeeId);
 
-            toast.success('Employee deleted successfully!');
+            await deleteEmployee(
+                employeeId
+            );
+
+            toast.success(
+                'Employee deleted successfully!'
+            );
 
             setShowDeleteConfirm(null);
 
             await fetchEmployees();
 
         } catch (error) {
-            console.error('Delete employee error:', error);
 
-            if (error?.response?.status === 403) {
+            console.error(
+                'Delete employee error:',
+                error
+            );
+
+
+            if (
+                error?.response?.status === 403
+            ) {
+
                 toast.error(
                     "You don't have permission to delete employees. Only Admin can delete employees.",
-                    { duration: 5000 }
+                    {
+                        duration: 5000,
+                    }
                 );
+
                 return;
             }
 
-            if (error?.response?.status === 401) {
+
+            if (
+                error?.response?.status === 401
+            ) {
+
                 toast.error(
                     'Your session has expired. Please login again.',
-                    { duration: 5000 }
+                    {
+                        duration: 5000,
+                    }
                 );
+
                 return;
             }
+
 
             toast.error(
                 error?.response?.data?.message ||
                 'Failed to delete employee. Please try again.',
-                { duration: 5000 }
+                {
+                    duration: 5000,
+                }
             );
 
         } finally {
+
             setDeleting(null);
         }
     };
+
+
+    /* =====================================================
+       DATE OF BIRTH MAX
+    ===================================================== */
+
+    const today = new Date()
+        .toISOString()
+        .split('T')[0];
+
+
+    /* =====================================================
+       INITIALS
+    ===================================================== */
+
+    const getInitials = (employee) => {
+
+        const first =
+            employee?.firstName?.trim()?.[0] ||
+            '';
+
+        const last =
+            employee?.lastName?.trim()?.[0] ||
+            '';
+
+        return (
+            `${first}${last}` ||
+            'U'
+        ).toUpperCase();
+    };
+
+
+    /* =====================================================
+       ROLE ICON
+    ===================================================== */
+
+    const RoleIcon = ({
+        role,
+        size = 14,
+    }) => {
+
+        const normalized =
+            String(role || '')
+                .replace(/^ROLE_/i, '')
+                .toUpperCase();
+
+        if (normalized === 'ADMIN') {
+            return (
+                <ShieldCheck
+                    size={size}
+                />
+            );
+        }
+
+        if (normalized === 'HR') {
+            return (
+                <UserCog
+                    size={size}
+                />
+            );
+        }
+
+        return (
+            <UserRound
+                size={size}
+            />
+        );
+    };
+
+
     /* =====================================================
        PAGE
     ===================================================== */
@@ -563,22 +904,495 @@ export default function EmployeeManagementPage() {
                 box-border
                 p-4
                 sm:p-6
+                lg:p-7
                 bg-slate-50
                 text-slate-900
                 dark:bg-[#0B1220]
                 dark:text-[#E6F1FB]
+                transition-colors
             "
         >
 
-            {/* =================================================
-               PAGE CONTENT
-            ================================================= */}
+            <div
+                className="
+                    w-full
+                    max-w-[1600px]
+                    mx-auto
+                "
+            >
 
-            <div className="w-full min-w-0 max-w-full">
-
-                {/* =============================================
+                {/* =================================================
                    HEADER
-                ============================================== */}
+                ================================================= */}
+
+                <div
+                    className="
+                        flex
+                        flex-col
+                        lg:flex-row
+                        lg:items-center
+                        lg:justify-between
+                        gap-5
+                        mb-7
+                    "
+                >
+
+                    <div className="min-w-0">
+
+                        <div
+                            className="
+                                inline-flex
+                                items-center
+                                gap-2
+                                mb-2
+                                px-2.5
+                                py-1
+                                rounded-full
+                                border
+                                bg-indigo-50
+                                border-indigo-100
+                                text-indigo-600
+                                dark:bg-[#111F35]
+                                dark:border-[#223A5A]
+                                dark:text-[#72B6F8]
+                                text-[10px]
+                                font-bold
+                                uppercase
+                                tracking-[0.12em]
+                            "
+                        >
+                            <span
+                                className="
+                                    w-1.5
+                                    h-1.5
+                                    rounded-full
+                                    bg-indigo-500
+                                    dark:bg-[#5BAAF5]
+                                "
+                            />
+
+                            {isAdmin
+                                ? 'Admin Management'
+                                : isHR
+                                    ? 'HR Management'
+                                    : 'Employee Directory'}
+                        </div>
+
+
+                        <h1
+                            className="
+                                text-[25px]
+                                sm:text-[28px]
+                                lg:text-[30px]
+                                font-extrabold
+                                tracking-tight
+                                truncate
+                                text-slate-900
+                                dark:text-[#F3F8FD]
+                            "
+                        >
+                            Employee Management
+                        </h1>
+
+
+                        <p
+                            className="
+                                mt-1.5
+                                text-[13px]
+                                sm:text-[14px]
+                                text-slate-500
+                                dark:text-[#7C93B3]
+                            "
+                        >
+                            Manage employee records, roles,
+                            departments and access.
+                        </p>
+
+                    </div>
+
+
+                    <div
+                        className="
+                            flex
+                            items-center
+                            gap-3
+                            shrink-0
+                        "
+                    >
+
+                        <div
+                            className="
+                                hidden
+                                sm:flex
+                                items-center
+                                gap-2
+                                px-3.5
+                                py-2.5
+                                rounded-xl
+                                border
+                                bg-white
+                                border-slate-200
+                                text-slate-600
+                                dark:bg-[#0F1728]
+                                dark:border-[#1B2740]
+                                dark:text-[#B5D4F4]
+                                text-xs
+                                font-semibold
+                            "
+                        >
+                            <Users
+                                size={15}
+                            />
+
+                            {totalElements}
+                            {' '}
+                            Employees
+                        </div>
+
+
+                        <button
+                            type="button"
+                            onClick={openAddForm}
+                            className="
+                                inline-flex
+                                items-center
+                                justify-center
+                                gap-2
+                                shrink-0
+                                px-5
+                                py-2.5
+                                rounded-xl
+                                text-[13px]
+                                font-bold
+                                whitespace-nowrap
+                                cursor-pointer
+                                bg-indigo-600
+                                text-white
+                                hover:bg-indigo-700
+                                dark:bg-[#378ADD]
+                                dark:hover:bg-[#4A9BEA]
+                                dark:text-[#042C53]
+                                shadow-sm
+                                hover:shadow-md
+                                transition-all
+                            "
+                        >
+                            <Plus
+                                size={16}
+                            />
+
+                            Add Employee
+                        </button>
+
+                    </div>
+
+                </div>
+
+
+                {/* =================================================
+                   SUMMARY CARDS
+                ================================================= */}
+
+                <div
+                    className="
+                        grid
+                        grid-cols-1
+                        sm:grid-cols-2
+                        lg:grid-cols-4
+                        gap-3
+                        mb-5
+                    "
+                >
+
+                    <div
+                        className="
+                            rounded-2xl
+                            border
+                            bg-white
+                            border-slate-200
+                            dark:bg-[#0F1728]
+                            dark:border-[#1B2740]
+                            p-4
+                        "
+                    >
+                        <div
+                            className="
+                                flex
+                                items-center
+                                justify-between
+                                gap-3
+                            "
+                        >
+
+                            <div>
+                                <p
+                                    className="
+                                        text-[10px]
+                                        font-bold
+                                        uppercase
+                                        tracking-wider
+                                        text-slate-400
+                                        dark:text-[#6F86A3]
+                                    "
+                                >
+                                    Total Employees
+                                </p>
+
+                                <p
+                                    className="
+                                        mt-1
+                                        text-xl
+                                        font-extrabold
+                                        text-slate-900
+                                        dark:text-[#F3F8FD]
+                                    "
+                                >
+                                    {totalElements}
+                                </p>
+                            </div>
+
+                            <div
+                                className="
+                                    w-10
+                                    h-10
+                                    rounded-xl
+                                    flex
+                                    items-center
+                                    justify-center
+                                    bg-indigo-50
+                                    text-indigo-600
+                                    dark:bg-[#132B49]
+                                    dark:text-[#72B6F8]
+                                "
+                            >
+                                <Users
+                                    size={18}
+                                />
+                            </div>
+
+                        </div>
+                    </div>
+
+
+                    <div
+                        className="
+                            rounded-2xl
+                            border
+                            bg-white
+                            border-slate-200
+                            dark:bg-[#0F1728]
+                            dark:border-[#1B2740]
+                            p-4
+                        "
+                    >
+                        <div
+                            className="
+                                flex
+                                items-center
+                                justify-between
+                                gap-3
+                            "
+                        >
+
+                            <div>
+                                <p
+                                    className="
+                                        text-[10px]
+                                        font-bold
+                                        uppercase
+                                        tracking-wider
+                                        text-slate-400
+                                        dark:text-[#6F86A3]
+                                    "
+                                >
+                                    Current Page
+                                </p>
+
+                                <p
+                                    className="
+                                        mt-1
+                                        text-xl
+                                        font-extrabold
+                                        text-slate-900
+                                        dark:text-[#F3F8FD]
+                                    "
+                                >
+                                    {page + 1}
+                                </p>
+                            </div>
+
+                            <div
+                                className="
+                                    w-10
+                                    h-10
+                                    rounded-xl
+                                    flex
+                                    items-center
+                                    justify-center
+                                    bg-purple-50
+                                    text-purple-600
+                                    dark:bg-[#292452]
+                                    dark:text-[#A9A3F5]
+                                "
+                            >
+                                <ChevronRight
+                                    size={18}
+                                />
+                            </div>
+
+                        </div>
+                    </div>
+
+
+                    <div
+                        className="
+                            rounded-2xl
+                            border
+                            bg-white
+                            border-slate-200
+                            dark:bg-[#0F1728]
+                            dark:border-[#1B2740]
+                            p-4
+                        "
+                    >
+                        <div
+                            className="
+                                flex
+                                items-center
+                                justify-between
+                                gap-3
+                            "
+                        >
+
+                            <div>
+                                <p
+                                    className="
+                                        text-[10px]
+                                        font-bold
+                                        uppercase
+                                        tracking-wider
+                                        text-slate-400
+                                        dark:text-[#6F86A3]
+                                    "
+                                >
+                                    Pages
+                                </p>
+
+                                <p
+                                    className="
+                                        mt-1
+                                        text-xl
+                                        font-extrabold
+                                        text-slate-900
+                                        dark:text-[#F3F8FD]
+                                    "
+                                >
+                                    {totalPages || 0}
+                                </p>
+                            </div>
+
+                            <div
+                                className="
+                                    w-10
+                                    h-10
+                                    rounded-xl
+                                    flex
+                                    items-center
+                                    justify-center
+                                    bg-amber-50
+                                    text-amber-600
+                                    dark:bg-[#332711]
+                                    dark:text-[#F2B94B]
+                                "
+                            >
+                                <ChevronRight
+                                    size={18}
+                                />
+                            </div>
+
+                        </div>
+                    </div>
+
+
+                    <div
+                        className="
+                            rounded-2xl
+                            border
+                            bg-white
+                            border-slate-200
+                            dark:bg-[#0F1728]
+                            dark:border-[#1B2740]
+                            p-4
+                        "
+                    >
+                        <div
+                            className="
+                                flex
+                                items-center
+                                justify-between
+                                gap-3
+                            "
+                        >
+
+                            <div>
+                                <p
+                                    className="
+                                        text-[10px]
+                                        font-bold
+                                        uppercase
+                                        tracking-wider
+                                        text-slate-400
+                                        dark:text-[#6F86A3]
+                                    "
+                                >
+                                    Access Level
+                                </p>
+
+                                <p
+                                    className="
+                                        mt-1
+                                        text-xl
+                                        font-extrabold
+                                        text-slate-900
+                                        dark:text-[#F3F8FD]
+                                    "
+                                >
+                                    {isAdmin
+                                        ? 'Admin'
+                                        : isHR
+                                            ? 'HR'
+                                            : 'Employee'}
+                                </p>
+                            </div>
+
+                            <div
+                                className="
+                                    w-10
+                                    h-10
+                                    rounded-xl
+                                    flex
+                                    items-center
+                                    justify-center
+                                    bg-green-50
+                                    text-green-600
+                                    dark:bg-[#173404]
+                                    dark:text-[#97C459]
+                                "
+                            >
+                                <ShieldCheck
+                                    size={18}
+                                />
+                            </div>
+
+                        </div>
+                    </div>
+
+                </div>
+
+
+                {/* =================================================
+                   SEARCH
+                ================================================= */}
 
                 <div
                     className="
@@ -587,171 +1401,159 @@ export default function EmployeeManagementPage() {
                         sm:flex-row
                         sm:items-center
                         sm:justify-between
-                        gap-4
-                        min-w-0
-                        max-w-full
-                        mb-6
-                    "
-                >
-
-                    <div className="min-w-0">
-
-                        <h1
-                            className="
-                                text-[22px]
-                                sm:text-[24px]
-                                font-extrabold
-                                truncate
-                                text-slate-900
-                                dark:text-[#E6F1FB]
-                            "
-                        >
-                            Employee Management
-                        </h1>
-
-                        <p
-                            className="
-                                mt-1
-                                text-[13px]
-                                text-slate-500
-                                dark:text-[#7C93B3]
-                            "
-                        >
-                            {totalElements} total employees
-                        </p>
-
-                    </div>
-
-                    <button
-                        type="button"
-                        onClick={openAddForm}
-                        className="
-                            shrink-0
-                            self-start
-                            sm:self-auto
-                            px-5
-                            py-2.5
-                            rounded-xl
-                            text-[13px]
-                            font-bold
-                            whitespace-nowrap
-                            cursor-pointer
-                            bg-indigo-500
-                            text-white
-                            dark:bg-[#378ADD]
-                            dark:text-[#042C53]
-                        "
-                    >
-                        + Add Employee
-                    </button>
-
-                </div>
-
-                {/* =============================================
-                   SEARCH
-                ============================================== */}
-
-                <div
-                    className="
-                        relative
-                        w-full
-                        sm:max-w-[430px]
-                        min-w-0
+                        gap-3
                         mb-5
                     "
                 >
 
-                    <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
+                    <div
                         className="
-                            absolute
-                            left-3
-                            top-1/2
-                            -translate-y-1/2
-                            text-slate-400
-                            dark:text-[#5F7590]
+                            relative
+                            w-full
+                            sm:max-w-[500px]
+                            min-w-0
                         "
                     >
-                        <circle
-                            cx="11"
-                            cy="11"
-                            r="8"
-                        />
 
-                        <path d="M21 21l-4.35-4.35" />
-                    </svg>
-
-                    <input
-                        value={search}
-                        onChange={(event) => {
-                            setSearch(
-                                event.target.value
-                            );
-
-                            setPage(0);
-                        }}
-                        placeholder="Search by name, email, department..."
-                        className="
-                            w-full
-                            min-w-0
-                            h-10
-                            pl-[38px]
-                            pr-4
-                            rounded-xl
-                            text-[13px]
-                            outline-none
-                            box-border
-                            bg-white
-                            border
-                            border-slate-200
-                            text-slate-900
-                            dark:bg-[#111A2C]
-                            dark:border-[#223148]
-                            dark:text-[#E6F1FB]
-                            focus:border-indigo-500
-                            dark:focus:border-[#378ADD]
-                        "
-                    />
-
-                    {searching && (
-                        <span
+                        <Search
+                            size={17}
                             className="
                                 absolute
-                                right-3
+                                left-3.5
                                 top-1/2
                                 -translate-y-1/2
-                                text-[11px]
                                 text-slate-400
                                 dark:text-[#5F7590]
+                                pointer-events-none
+                            "
+                        />
+
+                        <input
+                            value={search}
+                            onChange={(event) => {
+                                setSearch(
+                                    event.target.value
+                                );
+
+                                setPage(0);
+                            }}
+                            placeholder="
+                                Search by name, email,
+                                department or designation...
+                            "
+                            className="
+                                w-full
+                                h-11
+                                pl-10
+                                pr-11
+                                rounded-xl
+                                text-[13px]
+                                outline-none
+                                box-border
+                                bg-white
+                                border
+                                border-slate-200
+                                text-slate-900
+                                placeholder-slate-400
+                                dark:bg-[#111A2C]
+                                dark:border-[#223148]
+                                dark:text-[#E6F1FB]
+                                dark:placeholder-[#5F7590]
+                                focus:border-indigo-500
+                                dark:focus:border-[#378ADD]
+                                transition-colors
+                            "
+                        />
+
+                        {searching && (
+                            <Loader2
+                                size={16}
+                                className="
+                                    absolute
+                                    right-3.5
+                                    top-1/2
+                                    -translate-y-1/2
+                                    animate-spin
+                                    text-indigo-500
+                                    dark:text-[#5BAAF5]
+                                "
+                            />
+                        )}
+
+                        {!searching &&
+                            search && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setSearch('');
+                                        setPage(0);
+                                    }}
+                                    className="
+                                        absolute
+                                        right-3
+                                        top-1/2
+                                        -translate-y-1/2
+                                        p-1
+                                        rounded-md
+                                        text-slate-400
+                                        hover:text-slate-700
+                                        dark:text-[#6F86A3]
+                                        dark:hover:text-[#D7E6F5]
+                                        cursor-pointer
+                                    "
+                                >
+                                    <X
+                                        size={15}
+                                    />
+                                </button>
+                            )}
+
+                    </div>
+
+
+                    {search && (
+                        <p
+                            className="
+                                text-xs
+                                text-slate-500
+                                dark:text-[#7C93B3]
                             "
                         >
-                            Searching...
-                        </span>
+                            Searching for:
+                            {' '}
+                            <span
+                                className="
+                                    font-semibold
+                                    text-slate-700
+                                    dark:text-[#B5D4F4]
+                                "
+                            >
+                                &quot;{search}&quot;
+                            </span>
+                        </p>
                     )}
 
                 </div>
 
-                {/* =============================================
-                   TABLE
-                ============================================== */}
+
+                {/* =================================================
+                   TABLE CONTAINER
+                ================================================= */}
 
                 <div
                     className="
                         w-full
                         min-w-0
                         max-w-full
-                        overflow-x-auto
-                        rounded-xl
+                        overflow-hidden
+                        rounded-2xl
                         border
                         bg-white
                         border-slate-200
                         dark:bg-[#0F1728]
                         dark:border-[#1B2740]
+                        shadow-sm
+                        dark:shadow-none
                     "
                 >
 
@@ -763,7 +1565,7 @@ export default function EmployeeManagementPage() {
                             md:grid
                             gap-3
                             px-5
-                            py-3
+                            py-3.5
                             border-b
                             bg-slate-50
                             border-slate-200
@@ -776,61 +1578,89 @@ export default function EmployeeManagementPage() {
                         }}
                     >
 
-                        <div className="text-[11px] font-bold uppercase text-slate-500 dark:text-[#7C93B3]">
+                        <div className="
+                            text-[10px]
+                            font-bold
+                            uppercase
+                            tracking-wider
+                            text-slate-500
+                            dark:text-[#7C93B3]
+                        ">
                             EMP ID
                         </div>
 
-                        <div className="text-[11px] font-bold uppercase text-slate-500 dark:text-[#7C93B3]">
+                        <div className="
+                            text-[10px]
+                            font-bold
+                            uppercase
+                            tracking-wider
+                            text-slate-500
+                            dark:text-[#7C93B3]
+                        ">
                             EMPLOYEE
                         </div>
 
-                        <div className="text-[11px] font-bold uppercase text-slate-500 dark:text-[#7C93B3]">
+                        <div className="
+                            text-[10px]
+                            font-bold
+                            uppercase
+                            tracking-wider
+                            text-slate-500
+                            dark:text-[#7C93B3]
+                        ">
                             DEPARTMENT
                         </div>
 
-                        <div className="text-[11px] font-bold uppercase text-slate-500 dark:text-[#7C93B3]">
+                        <div className="
+                            text-[10px]
+                            font-bold
+                            uppercase
+                            tracking-wider
+                            text-slate-500
+                            dark:text-[#7C93B3]
+                        ">
                             DESIGNATION
                         </div>
 
-                        <div className="text-[11px] font-bold uppercase text-slate-500 dark:text-[#7C93B3]">
+                        <div className="
+                            text-[10px]
+                            font-bold
+                            uppercase
+                            tracking-wider
+                            text-slate-500
+                            dark:text-[#7C93B3]
+                        ">
                             ROLE
                         </div>
 
-                        <div className="text-[11px] font-bold uppercase text-slate-500 dark:text-[#7C93B3]">
+                        <div className="
+                            text-[10px]
+                            font-bold
+                            uppercase
+                            tracking-wider
+                            text-slate-500
+                            dark:text-[#7C93B3]
+                        ">
                             STATUS
                         </div>
 
-                        <div className="text-[11px] font-bold uppercase text-slate-500 dark:text-[#7C93B3]">
+                        <div className="
+                            text-[10px]
+                            font-bold
+                            uppercase
+                            tracking-wider
+                            text-slate-500
+                            dark:text-[#7C93B3]
+                        ">
                             ACTIONS
                         </div>
 
                     </div>
 
-                    {/* =========================================
-                       LOADING
-                    ========================================== */}
+
+                    {/* LOADING */}
 
                     {loading ? (
-
-                        <div
-                            className="
-                                flex
-                                items-center
-                                justify-center
-                                py-16
-                                text-sm
-                                text-slate-400
-                                dark:text-[#5F7590]
-                            "
-                        >
-                            Loading employees...
-                        </div>
-
-                    ) : employees.length === 0 ? (
-
-                        /* =====================================
-                           EMPTY
-                        ====================================== */
 
                         <div
                             className="
@@ -838,26 +1668,68 @@ export default function EmployeeManagementPage() {
                                 flex-col
                                 items-center
                                 justify-center
-                                py-16
+                                py-20
+                                text-sm
+                                text-slate-400
+                                dark:text-[#5F7590]
+                            "
+                        >
+                            <Loader2
+                                size={28}
+                                className="
+                                    animate-spin
+                                    mb-3
+                                    text-indigo-500
+                                    dark:text-[#5BAAF5]
+                                "
+                            />
+
+                            Loading employees...
+                        </div>
+
+                    ) : employees.length === 0 ? (
+
+                        /* =========================================
+                           EMPTY STATE
+                        ========================================== */
+
+                        <div
+                            className="
+                                flex
+                                flex-col
+                                items-center
+                                justify-center
+                                py-20
                                 px-5
                                 text-center
                             "
                         >
 
-                            <Users
-                                size={46}
-                                strokeWidth={1.5}
+                            <div
                                 className="
-                                    mb-3
+                                    w-16
+                                    h-16
+                                    rounded-2xl
+                                    flex
+                                    items-center
+                                    justify-center
+                                    bg-slate-100
                                     text-slate-400
+                                    dark:bg-[#111A2C]
                                     dark:text-[#5F7590]
+                                    mb-4
                                 "
-                            />
+                            >
+                                <Users
+                                    size={30}
+                                    strokeWidth={1.5}
+                                />
+                            </div>
 
                             <p
                                 className="
-                                    text-[15px]
-                                    font-semibold
+                                    text-[16px]
+                                    font-bold
                                     text-slate-900
                                     dark:text-[#E6F1FB]
                                 "
@@ -869,7 +1741,7 @@ export default function EmployeeManagementPage() {
 
                             <p
                                 className="
-                                    mt-1
+                                    mt-1.5
                                     text-[13px]
                                     text-slate-500
                                     dark:text-[#7C93B3]
@@ -877,422 +1749,275 @@ export default function EmployeeManagementPage() {
                             >
                                 {search
                                     ? `No results for "${search}"`
-                                    : 'Add your first employee'}
+                                    : 'Add your first employee to get started.'}
                             </p>
+
+                            {!search && (
+                                <button
+                                    type="button"
+                                    onClick={openAddForm}
+                                    className="
+                                        mt-5
+                                        inline-flex
+                                        items-center
+                                        gap-2
+                                        px-4
+                                        py-2.5
+                                        rounded-xl
+                                        text-xs
+                                        font-bold
+                                        bg-indigo-600
+                                        text-white
+                                        hover:bg-indigo-700
+                                        dark:bg-[#378ADD]
+                                        dark:text-[#042C53]
+                                        cursor-pointer
+                                    "
+                                >
+                                    <Plus
+                                        size={15}
+                                    />
+
+                                    Add Employee
+                                </button>
+                            )}
 
                         </div>
 
                     ) : (
 
-                        /* =====================================
+                        /* =========================================
                            EMPLOYEE ROWS
-                        ====================================== */
+                        ========================================== */
 
                         <div className="w-full min-w-0">
 
-                            {employees.map((employee) => (
-
-                                <div
-                                    key={employee.id}
-                                    className="
-                                        border-b
-                                        border-slate-100
-                                        dark:border-[#1B2740]
-                                        last:border-b-0
-                                    "
-                                >
-
-                                    {/* =========================
-                                       DESKTOP ROW
-                                    ========================== */}
+                            {employees.map(
+                                (employee) => (
 
                                     <div
+                                        key={
+                                            employee.id ??
+                                            employee.employeeId
+                                        }
                                         className="
-                                            hidden
-                                            md:grid
-                                            gap-3
-                                            items-center
-                                            px-5
-                                            py-3.5
-                                            min-w-0
-                                            w-full
-                                            hover:bg-slate-50
-                                            dark:hover:bg-[#111A2C]
+                                            border-b
+                                            border-slate-100
+                                            dark:border-[#1B2740]
+                                            last:border-b-0
                                         "
-                                        style={{
-                                            gridTemplateColumns:
-                                                tableColumns,
-                                        }}
                                     >
 
-                                        {/* EMP ID */}
+                                        {/* =================================
+                                           DESKTOP ROW
+                                        ================================== */}
 
                                         <div
                                             className="
-                                                min-w-0
-                                                overflow-hidden
-                                                whitespace-nowrap
-                                                text-ellipsis
-                                                text-xs
-                                                font-semibold
-                                                text-slate-500
-                                                dark:text-[#7C93B3]
-                                            "
-                                            title={
-                                                employee.employeeId
-                                            }
-                                        >
-                                            {
-                                                employee.employeeId
-                                            }
-                                        </div>
-
-                                        {/* EMPLOYEE */}
-
-                                        <div
-                                            className="
-                                                min-w-0
-                                                flex
+                                                hidden
+                                                md:grid
+                                                gap-3
                                                 items-center
-                                                gap-2.5
+                                                px-5
+                                                py-3.5
+                                                min-w-0
+                                                w-full
+                                                hover:bg-slate-50
+                                                dark:hover:bg-[#111A2C]
+                                                transition-colors
                                             "
+                                            style={{
+                                                gridTemplateColumns:
+                                                    tableColumns,
+                                            }}
                                         >
 
-                                            <div
-                                                className="
-                                                    shrink-0
-                                                    w-[34px]
-                                                    h-[34px]
-                                                    rounded-full
-                                                    flex
-                                                    items-center
-                                                    justify-center
-                                                    text-xs
-                                                    font-bold
-                                                    bg-[#185FA5]
-                                                    text-white
-                                                "
-                                            >
-                                                {
-                                                    employee.firstName?.[0]
-                                                }
-                                                {
-                                                    employee.lastName?.[0]
-                                                }
-                                            </div>
+                                            {/* EMP ID */}
 
                                             <div
                                                 className="
                                                     min-w-0
-                                                    flex-1
+                                                    overflow-hidden
+                                                    whitespace-nowrap
+                                                    text-ellipsis
+                                                    text-xs
+                                                    font-semibold
+                                                    text-slate-500
+                                                    dark:text-[#7C93B3]
                                                 "
+                                                title={
+                                                    employee.employeeId
+                                                }
                                             >
-
-                                                <div
-                                                    className="
-                                                        min-w-0
-                                                        overflow-hidden
-                                                        whitespace-nowrap
-                                                        text-ellipsis
-                                                        text-[13px]
-                                                        font-semibold
-                                                        text-slate-900
-                                                        dark:text-[#E6F1FB]
-                                                    "
-                                                    title={`
-                                                        ${employee.firstName || ''}
-                                                        ${employee.lastName || ''}
-                                                    `}
-                                                >
-                                                    {
-                                                        employee.firstName
-                                                    }{' '}
-                                                    {
-                                                        employee.lastName
-                                                    }
-                                                </div>
-
-                                                <div
-                                                    className="
-                                                        min-w-0
-                                                        overflow-hidden
-                                                        whitespace-nowrap
-                                                        text-ellipsis
-                                                        text-[11px]
-                                                        text-slate-500
-                                                        dark:text-[#5F7590]
-                                                    "
-                                                    title={
-                                                        employee.email
-                                                    }
-                                                >
-                                                    {
-                                                        employee.email
-                                                    }
-                                                </div>
-
+                                                {
+                                                    employee.employeeId ||
+                                                    '—'
+                                                }
                                             </div>
 
-                                        </div>
 
-                                        {/* DEPARTMENT */}
-
-                                        <div
-                                            className="
-                                                min-w-0
-                                                overflow-hidden
-                                                whitespace-nowrap
-                                                text-ellipsis
-                                                text-[13px]
-                                                text-slate-700
-                                                dark:text-[#B5D4F4]
-                                            "
-                                            title={
-                                                employee.department ||
-                                                '—'
-                                            }
-                                        >
-                                            {
-                                                employee.department ||
-                                                '—'
-                                            }
-                                        </div>
-
-                                        {/* DESIGNATION */}
-
-                                        <div
-                                            className="
-                                                min-w-0
-                                                overflow-hidden
-                                                whitespace-nowrap
-                                                text-ellipsis
-                                                text-[13px]
-                                                text-slate-700
-                                                dark:text-[#B5D4F4]
-                                            "
-                                            title={
-                                                employee.designation ||
-                                                '—'
-                                            }
-                                        >
-                                            {
-                                                employee.designation ||
-                                                '—'
-                                            }
-                                        </div>
-
-                                        {/* ROLE */}
-
-                                        <div
-                                            className="
-                                                min-w-0
-                                                overflow-hidden
-                                            "
-                                        >
-                                            <Badge
-                                                status={
-                                                    employee.role
-                                                }
-                                            />
-                                        </div>
-
-                                        {/* STATUS */}
-
-                                        <div
-                                            className="
-                                                min-w-0
-                                                overflow-hidden
-                                            "
-                                        >
-                                            <Badge
-                                                status={
-                                                    employee.active
-                                                        ? 'ACTIVE'
-                                                        : 'INACTIVE'
-                                                }
-                                            />
-                                        </div>
-
-                                        {/* ACTIONS */}
-
-                                        <div
-                                            className="
-                                                min-w-0
-                                                flex
-                                                items-center
-                                                gap-1.5
-                                                overflow-hidden
-                                            "
-                                        >
-
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    openEditForm(
-                                                        employee
-                                                    )
-                                                }
-                                                className="
-                                                    shrink-0
-                                                    px-3
-                                                    py-1.5
-                                                    rounded-md
-                                                    text-[11px]
-                                                    font-bold
-                                                    whitespace-nowrap
-                                                    cursor-pointer
-                                                    bg-blue-600
-                                                    text-white
-                                                    dark:bg-[#185FA5]
-                                                "
-                                            >
-                                                Edit
-                                            </button>
-
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    setShowDeleteConfirm(
-                                                        employee
-                                                    )
-                                                }
-                                                className="
-                                                    shrink-0
-                                                    px-3
-                                                    py-1.5
-                                                    rounded-md
-                                                    text-[11px]
-                                                    font-bold
-                                                    whitespace-nowrap
-                                                    cursor-pointer
-                                                    bg-red-600
-                                                    text-white
-                                                    dark:bg-[#A32D2D]
-                                                "
-                                            >
-                                                Delete
-                                            </button>
-
-                                        </div>
-
-                                    </div>
-
-                                    {/* =========================
-                                       MOBILE CARD
-                                    ========================== */}
-
-                                    <div
-                                        className="
-                                            md:hidden
-                                            p-4
-                                            bg-white
-                                            dark:bg-[#0F1728]
-                                        "
-                                    >
-
-                                        <div
-                                            className="
-                                                flex
-                                                items-center
-                                                gap-3
-                                                min-w-0
-                                            "
-                                        >
+                                            {/* EMPLOYEE */}
 
                                             <div
                                                 className="
-                                                    shrink-0
-                                                    w-10
-                                                    h-10
-                                                    rounded-full
+                                                    min-w-0
                                                     flex
                                                     items-center
-                                                    justify-center
-                                                    text-xs
-                                                    font-bold
-                                                    bg-[#185FA5]
-                                                    text-white
+                                                    gap-2.5
                                                 "
                                             >
-                                                {
-                                                    employee.firstName?.[0]
-                                                }
-                                                {
-                                                    employee.lastName?.[0]
-                                                }
-                                            </div>
-
-                                            <div className="min-w-0 flex-1">
 
                                                 <div
                                                     className="
-                                                        font-semibold
-                                                        text-sm
-                                                        truncate
-                                                        text-slate-900
-                                                        dark:text-[#E6F1FB]
+                                                        shrink-0
+                                                        w-9
+                                                        h-9
+                                                        rounded-full
+                                                        flex
+                                                        items-center
+                                                        justify-center
+                                                        text-xs
+                                                        font-bold
+                                                        bg-[#185FA5]
+                                                        text-white
+                                                        ring-2
+                                                        ring-indigo-50
+                                                        dark:ring-[#132B49]
                                                     "
                                                 >
-                                                    {
-                                                        employee.firstName
-                                                    }{' '}
-                                                    {
-                                                        employee.lastName
-                                                    }
+                                                    {getInitials(
+                                                        employee
+                                                    )}
                                                 </div>
+
 
                                                 <div
                                                     className="
-                                                        text-[11px]
-                                                        truncate
-                                                        text-slate-500
-                                                        dark:text-[#5F7590]
+                                                        min-w-0
+                                                        flex-1
                                                     "
                                                 >
-                                                    {
-                                                        employee.email
-                                                    }
+
+                                                    <div
+                                                        className="
+                                                            min-w-0
+                                                            overflow-hidden
+                                                            whitespace-nowrap
+                                                            text-ellipsis
+                                                            text-[13px]
+                                                            font-semibold
+                                                            text-slate-900
+                                                            dark:text-[#E6F1FB]
+                                                        "
+                                                        title={`
+                                                            ${employee.firstName || ''}
+                                                            ${employee.lastName || ''}
+                                                        `}
+                                                    >
+                                                        {
+                                                            employee.firstName
+                                                        }
+                                                        {' '}
+                                                        {
+                                                            employee.lastName
+                                                        }
+                                                    </div>
+
+                                                    <div
+                                                        className="
+                                                            min-w-0
+                                                            overflow-hidden
+                                                            whitespace-nowrap
+                                                            text-ellipsis
+                                                            text-[11px]
+                                                            text-slate-500
+                                                            dark:text-[#5F7590]
+                                                        "
+                                                        title={
+                                                            employee.email
+                                                        }
+                                                    >
+                                                        {
+                                                            employee.email ||
+                                                            '—'
+                                                        }
+                                                    </div>
+
                                                 </div>
 
                                             </div>
 
-                                            <Badge
-                                                status={
-                                                    employee.active
-                                                        ? 'ACTIVE'
-                                                        : 'INACTIVE'
+
+                                            {/* DEPARTMENT */}
+
+                                            <div
+                                                className="
+                                                    min-w-0
+                                                    overflow-hidden
+                                                    whitespace-nowrap
+                                                    text-ellipsis
+                                                    text-[13px]
+                                                    text-slate-700
+                                                    dark:text-[#B5D4F4]
+                                                "
+                                                title={
+                                                    employee.department ||
+                                                    '—'
                                                 }
-                                            />
-
-                                        </div>
-
-                                        <div
-                                            className="
-                                                grid
-                                                grid-cols-2
-                                                gap-3
-                                                mt-4
-                                            "
-                                        >
-
-                                            <div>
-                                                <p className="text-[10px] uppercase font-bold text-slate-400">
-                                                    EMP ID
-                                                </p>
-
-                                                <p className="text-xs mt-1 text-slate-700 dark:text-[#B5D4F4]">
-                                                    {
-                                                        employee.employeeId
-                                                    }
-                                                </p>
+                                            >
+                                                {
+                                                    employee.department ||
+                                                    '—'
+                                                }
                                             </div>
 
-                                            <div>
-                                                <p className="text-[10px] uppercase font-bold text-slate-400">
-                                                    ROLE
-                                                </p>
 
-                                                <div className="mt-1">
+                                            {/* DESIGNATION */}
+
+                                            <div
+                                                className="
+                                                    min-w-0
+                                                    overflow-hidden
+                                                    whitespace-nowrap
+                                                    text-ellipsis
+                                                    text-[13px]
+                                                    text-slate-700
+                                                    dark:text-[#B5D4F4]
+                                                "
+                                                title={
+                                                    employee.designation ||
+                                                    '—'
+                                                }
+                                            >
+                                                {
+                                                    employee.designation ||
+                                                    '—'
+                                                }
+                                            </div>
+
+
+                                            {/* ROLE */}
+
+                                            <div
+                                                className="
+                                                    min-w-0
+                                                    overflow-hidden
+                                                "
+                                            >
+                                                <div
+                                                    className="
+                                                        inline-flex
+                                                        items-center
+                                                        gap-1.5
+                                                    "
+                                                >
+                                                    <RoleIcon
+                                                        role={
+                                                            employee.role
+                                                        }
+                                                        size={12}
+                                                    />
+
                                                     <Badge
                                                         status={
                                                             employee.role
@@ -1301,97 +2026,439 @@ export default function EmployeeManagementPage() {
                                                 </div>
                                             </div>
 
-                                            <div>
-                                                <p className="text-[10px] uppercase font-bold text-slate-400">
-                                                    DEPARTMENT
-                                                </p>
 
-                                                <p className="text-xs mt-1 truncate text-slate-700 dark:text-[#B5D4F4]">
-                                                    {
-                                                        employee.department ||
-                                                        '—'
+                                            {/* STATUS */}
+
+                                            <div
+                                                className="
+                                                    min-w-0
+                                                    overflow-hidden
+                                                "
+                                            >
+                                                <Badge
+                                                    status={
+                                                        employee.active
+                                                            ? 'ACTIVE'
+                                                            : 'INACTIVE'
                                                     }
-                                                </p>
+                                                />
                                             </div>
 
-                                            <div>
-                                                <p className="text-[10px] uppercase font-bold text-slate-400">
-                                                    DESIGNATION
-                                                </p>
 
-                                                <p className="text-xs mt-1 truncate text-slate-700 dark:text-[#B5D4F4]">
-                                                    {
-                                                        employee.designation ||
-                                                        '—'
+                                            {/* ACTIONS */}
+
+                                            <div
+                                                className="
+                                                    min-w-0
+                                                    flex
+                                                    items-center
+                                                    gap-1.5
+                                                    overflow-hidden
+                                                "
+                                            >
+
+                                                {/* EDIT — AVAILABLE */}
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        openEditForm(
+                                                            employee
+                                                        )
                                                     }
-                                                </p>
+                                                    className="
+                                                        shrink-0
+                                                        inline-flex
+                                                        items-center
+                                                        justify-center
+                                                        gap-1.5
+                                                        px-3
+                                                        py-1.5
+                                                        rounded-lg
+                                                        text-[11px]
+                                                        font-bold
+                                                        whitespace-nowrap
+                                                        cursor-pointer
+                                                        bg-blue-600
+                                                        text-white
+                                                        hover:bg-blue-700
+                                                        dark:bg-[#185FA5]
+                                                        dark:hover:bg-[#2171C2]
+                                                        transition-colors
+                                                    "
+                                                >
+                                                    <Pencil
+                                                        size={12}
+                                                    />
+
+                                                    Edit
+                                                </button>
+
+
+                                                {/* =================================
+                                                   DELETE — ADMIN ONLY
+                                                ================================== */}
+
+                                                {isAdmin && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            setShowDeleteConfirm(
+                                                                employee
+                                                            )
+                                                        }
+                                                        className="
+                                                            shrink-0
+                                                            inline-flex
+                                                            items-center
+                                                            justify-center
+                                                            gap-1.5
+                                                            px-3
+                                                            py-1.5
+                                                            rounded-lg
+                                                            text-[11px]
+                                                            font-bold
+                                                            whitespace-nowrap
+                                                            cursor-pointer
+                                                            bg-red-600
+                                                            text-white
+                                                            hover:bg-red-700
+                                                            dark:bg-[#A32D2D]
+                                                            dark:hover:bg-[#C43B3B]
+                                                            transition-colors
+                                                        "
+                                                    >
+                                                        <Trash2
+                                                            size={12}
+                                                        />
+
+                                                        Delete
+                                                    </button>
+                                                )}
+
                                             </div>
 
                                         </div>
 
+
+                                        {/* =================================
+                                           MOBILE CARD
+                                        ================================== */}
+
                                         <div
                                             className="
-                                                flex
-                                                gap-2
-                                                mt-4
+                                                md:hidden
+                                                p-4
+                                                bg-white
+                                                dark:bg-[#0F1728]
                                             "
                                         >
 
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    openEditForm(
-                                                        employee
-                                                    )
-                                                }
+                                            <div
                                                 className="
-                                                    flex-1
-                                                    py-2
-                                                    rounded-lg
-                                                    text-xs
-                                                    font-bold
-                                                    bg-blue-600
-                                                    text-white
-                                                    cursor-pointer
+                                                    flex
+                                                    items-center
+                                                    gap-3
+                                                    min-w-0
                                                 "
                                             >
-                                                Edit
-                                            </button>
 
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    setShowDeleteConfirm(
+                                                <div
+                                                    className="
+                                                        shrink-0
+                                                        w-11
+                                                        h-11
+                                                        rounded-full
+                                                        flex
+                                                        items-center
+                                                        justify-center
+                                                        text-xs
+                                                        font-bold
+                                                        bg-[#185FA5]
+                                                        text-white
+                                                    "
+                                                >
+                                                    {getInitials(
                                                         employee
-                                                    )
-                                                }
+                                                    )}
+                                                </div>
+
+
+                                                <div
+                                                    className="
+                                                        min-w-0
+                                                        flex-1
+                                                    "
+                                                >
+
+                                                    <div
+                                                        className="
+                                                            font-bold
+                                                            text-sm
+                                                            truncate
+                                                            text-slate-900
+                                                            dark:text-[#E6F1FB]
+                                                        "
+                                                    >
+                                                        {
+                                                            employee.firstName
+                                                        }
+                                                        {' '}
+                                                        {
+                                                            employee.lastName
+                                                        }
+                                                    </div>
+
+                                                    <div
+                                                        className="
+                                                            text-[11px]
+                                                            truncate
+                                                            text-slate-500
+                                                            dark:text-[#5F7590]
+                                                        "
+                                                    >
+                                                        {
+                                                            employee.email ||
+                                                            '—'
+                                                        }
+                                                    </div>
+
+                                                </div>
+
+
+                                                <Badge
+                                                    status={
+                                                        employee.active
+                                                            ? 'ACTIVE'
+                                                            : 'INACTIVE'
+                                                    }
+                                                />
+
+                                            </div>
+
+
+                                            <div
                                                 className="
-                                                    flex-1
-                                                    py-2
-                                                    rounded-lg
-                                                    text-xs
-                                                    font-bold
-                                                    bg-red-600
-                                                    text-white
-                                                    cursor-pointer
+                                                    grid
+                                                    grid-cols-2
+                                                    gap-3
+                                                    mt-4
                                                 "
                                             >
-                                                Delete
-                                            </button>
+
+                                                <div>
+                                                    <p
+                                                        className="
+                                                            text-[10px]
+                                                            uppercase
+                                                            font-bold
+                                                            tracking-wider
+                                                            text-slate-400
+                                                            dark:text-[#6F86A3]
+                                                        "
+                                                    >
+                                                        EMP ID
+                                                    </p>
+
+                                                    <p
+                                                        className="
+                                                            text-xs
+                                                            mt-1
+                                                            font-semibold
+                                                            text-slate-700
+                                                            dark:text-[#B5D4F4]
+                                                        "
+                                                    >
+                                                        {
+                                                            employee.employeeId ||
+                                                            '—'
+                                                        }
+                                                    </p>
+                                                </div>
+
+
+                                                <div>
+                                                    <p
+                                                        className="
+                                                            text-[10px]
+                                                            uppercase
+                                                            font-bold
+                                                            tracking-wider
+                                                            text-slate-400
+                                                            dark:text-[#6F86A3]
+                                                        "
+                                                    >
+                                                        ROLE
+                                                    </p>
+
+                                                    <div className="mt-1">
+                                                        <Badge
+                                                            status={
+                                                                employee.role
+                                                            }
+                                                        />
+                                                    </div>
+                                                </div>
+
+
+                                                <div>
+                                                    <p
+                                                        className="
+                                                            text-[10px]
+                                                            uppercase
+                                                            font-bold
+                                                            tracking-wider
+                                                            text-slate-400
+                                                            dark:text-[#6F86A3]
+                                                        "
+                                                    >
+                                                        DEPARTMENT
+                                                    </p>
+
+                                                    <p
+                                                        className="
+                                                            text-xs
+                                                            mt-1
+                                                            truncate
+                                                            text-slate-700
+                                                            dark:text-[#B5D4F4]
+                                                        "
+                                                    >
+                                                        {
+                                                            employee.department ||
+                                                            '—'
+                                                        }
+                                                    </p>
+                                                </div>
+
+
+                                                <div>
+                                                    <p
+                                                        className="
+                                                            text-[10px]
+                                                            uppercase
+                                                            font-bold
+                                                            tracking-wider
+                                                            text-slate-400
+                                                            dark:text-[#6F86A3]
+                                                        "
+                                                    >
+                                                        DESIGNATION
+                                                    </p>
+
+                                                    <p
+                                                        className="
+                                                            text-xs
+                                                            mt-1
+                                                            truncate
+                                                            text-slate-700
+                                                            dark:text-[#B5D4F4]
+                                                        "
+                                                    >
+                                                        {
+                                                            employee.designation ||
+                                                            '—'
+                                                        }
+                                                    </p>
+                                                </div>
+
+                                            </div>
+
+
+                                            {/* MOBILE ACTIONS */}
+
+                                            <div
+                                                className="
+                                                    flex
+                                                    gap-2
+                                                    mt-4
+                                                "
+                                            >
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        openEditForm(
+                                                            employee
+                                                        )
+                                                    }
+                                                    className="
+                                                        flex-1
+                                                        inline-flex
+                                                        items-center
+                                                        justify-center
+                                                        gap-2
+                                                        py-2.5
+                                                        rounded-lg
+                                                        text-xs
+                                                        font-bold
+                                                        bg-blue-600
+                                                        text-white
+                                                        hover:bg-blue-700
+                                                        cursor-pointer
+                                                        transition-colors
+                                                    "
+                                                >
+                                                    <Pencil
+                                                        size={14}
+                                                    />
+
+                                                    Edit
+                                                </button>
+
+
+                                                {/* ADMIN ONLY */}
+
+                                                {isAdmin && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            setShowDeleteConfirm(
+                                                                employee
+                                                            )
+                                                        }
+                                                        className="
+                                                            flex-1
+                                                            inline-flex
+                                                            items-center
+                                                            justify-center
+                                                            gap-2
+                                                            py-2.5
+                                                            rounded-lg
+                                                            text-xs
+                                                            font-bold
+                                                            bg-red-600
+                                                            text-white
+                                                            hover:bg-red-700
+                                                            dark:bg-[#A32D2D]
+                                                            dark:hover:bg-[#C43B3B]
+                                                            cursor-pointer
+                                                            transition-colors
+                                                        "
+                                                    >
+                                                        <Trash2
+                                                            size={14}
+                                                        />
+
+                                                        Delete
+                                                    </button>
+                                                )}
+
+                                            </div>
 
                                         </div>
 
                                     </div>
-
-                                </div>
-                            ))}
+                                )
+                            )}
 
                         </div>
                     )}
 
-                    {/* =========================================
+
+                    {/* =================================================
                        PAGINATION
-                    ========================================== */}
+                    ================================================= */}
 
                     {!loading &&
                         employees.length > 0 &&
@@ -1409,51 +2476,80 @@ export default function EmployeeManagementPage() {
                                     border-t
                                     border-slate-200
                                     dark:border-[#1B2740]
+                                    bg-white
+                                    dark:bg-[#0F1728]
                                 "
                             >
 
                                 <button
                                     type="button"
-                                    disabled={page === 0}
+                                    disabled={
+                                        page === 0
+                                    }
                                     onClick={() =>
-                                        setPage((previous) =>
-                                            Math.max(
-                                                0,
-                                                previous - 1
-                                            )
+                                        setPage(
+                                            (previous) =>
+                                                Math.max(
+                                                    0,
+                                                    previous - 1
+                                                )
                                         )
                                     }
                                     className="
+                                        inline-flex
+                                        items-center
+                                        gap-1.5
                                         px-3
-                                        py-1.5
-                                        rounded-md
+                                        py-2
+                                        rounded-lg
                                         text-xs
                                         font-semibold
                                         border
                                         bg-white
                                         border-slate-300
+                                        text-slate-700
+                                        hover:bg-slate-50
                                         dark:bg-[#111A2C]
                                         dark:border-[#223148]
                                         dark:text-[#B5D4F4]
+                                        dark:hover:bg-[#162239]
                                         disabled:opacity-40
                                         disabled:cursor-not-allowed
+                                        cursor-pointer
+                                        transition-colors
                                     "
                                 >
-                                    ← Prev
+                                    <ChevronLeft
+                                        size={14}
+                                    />
+
+                                    Prev
                                 </button>
+
 
                                 <span
                                     className="
                                         text-xs
-                                        px-2
-                                        text-slate-500
-                                        dark:text-[#7C93B3]
+                                        px-3
+                                        py-2
+                                        rounded-lg
+                                        bg-slate-50
+                                        text-slate-600
+                                        dark:bg-[#111A2C]
+                                        dark:text-[#B5D4F4]
                                         whitespace-nowrap
                                     "
                                 >
-                                    Page {page + 1} of{' '}
-                                    {totalPages}
+                                    Page{' '}
+                                    <strong>
+                                        {page + 1}
+                                    </strong>
+                                    {' '}of{' '}
+                                    <strong>
+                                        {totalPages}
+                                    </strong>
                                 </span>
+
 
                                 <button
                                     type="button"
@@ -1462,30 +2558,43 @@ export default function EmployeeManagementPage() {
                                         totalPages - 1
                                     }
                                     onClick={() =>
-                                        setPage((previous) =>
-                                            Math.min(
-                                                totalPages - 1,
-                                                previous + 1
-                                            )
+                                        setPage(
+                                            (previous) =>
+                                                Math.min(
+                                                    totalPages - 1,
+                                                    previous + 1
+                                                )
                                         )
                                     }
                                     className="
+                                        inline-flex
+                                        items-center
+                                        gap-1.5
                                         px-3
-                                        py-1.5
-                                        rounded-md
+                                        py-2
+                                        rounded-lg
                                         text-xs
                                         font-semibold
                                         border
                                         bg-white
                                         border-slate-300
+                                        text-slate-700
+                                        hover:bg-slate-50
                                         dark:bg-[#111A2C]
                                         dark:border-[#223148]
                                         dark:text-[#B5D4F4]
+                                        dark:hover:bg-[#162239]
                                         disabled:opacity-40
                                         disabled:cursor-not-allowed
+                                        cursor-pointer
+                                        transition-colors
                                     "
                                 >
-                                    Next →
+                                    Next
+
+                                    <ChevronRight
+                                        size={14}
+                                    />
                                 </button>
 
                             </div>
@@ -1495,9 +2604,10 @@ export default function EmployeeManagementPage() {
 
             </div>
 
-            {/* =================================================
+
+            {/* =====================================================
                ADD / EDIT MODAL
-            ================================================= */}
+            ====================================================== */}
 
             {showForm && (
 
@@ -1513,70 +2623,120 @@ export default function EmployeeManagementPage() {
                         bg-black/50
                         backdrop-blur-sm
                     "
+                    onMouseDown={(event) => {
+                        if (
+                            event.target ===
+                            event.currentTarget
+                        ) {
+                            closeForm();
+                        }
+                    }}
                 >
 
                     <div
                         className="
                             w-full
-                            max-w-[620px]
-                            max-h-[90vh]
+                            max-w-[680px]
+                            max-h-[92vh]
                             overflow-y-auto
                             rounded-2xl
-                            p-6
-                            sm:p-7
                             border
                             bg-white
                             border-slate-200
+                            shadow-2xl
                             dark:bg-[#0F1728]
                             dark:border-[#1B2740]
                         "
+                        onMouseDown={(event) =>
+                            event.stopPropagation()
+                        }
                     >
 
-                        {/* Modal Header */}
+                        {/* MODAL HEADER */}
 
                         <div
                             className="
+                                sticky
+                                top-0
+                                z-10
                                 flex
                                 items-center
                                 justify-between
                                 gap-3
-                                mb-5
+                                px-6
+                                py-5
+                                border-b
+                                bg-white
+                                border-slate-200
+                                dark:bg-[#0F1728]
+                                dark:border-[#1B2740]
                             "
                         >
 
-                            <h2
-                                className="
-                                    text-lg
-                                    font-extrabold
-                                    text-slate-900
-                                    dark:text-[#E6F1FB]
-                                "
-                            >
-                                {editMode
-                                    ? 'Edit Employee'
-                                    : 'Add New Employee'}
-                            </h2>
+                            <div>
+
+                                <h2
+                                    className="
+                                        text-lg
+                                        font-extrabold
+                                        text-slate-900
+                                        dark:text-[#E6F1FB]
+                                    "
+                                >
+                                    {editMode
+                                        ? 'Edit Employee'
+                                        : 'Add New Employee'}
+                                </h2>
+
+                                <p
+                                    className="
+                                        mt-1
+                                        text-[11px]
+                                        text-slate-500
+                                        dark:text-[#7C93B3]
+                                    "
+                                >
+                                    {editMode
+                                        ? 'Update employee information and access details.'
+                                        : 'Create a new employee account and profile.'}
+                                </p>
+
+                            </div>
+
 
                             <button
                                 type="button"
-                                onClick={() =>
-                                    setShowForm(false)
-                                }
+                                onClick={closeForm}
+                                disabled={submitting}
                                 className="
                                     shrink-0
-                                    text-xl
+                                    w-9
+                                    h-9
+                                    rounded-lg
+                                    flex
+                                    items-center
+                                    justify-center
                                     cursor-pointer
                                     text-slate-500
+                                    hover:bg-slate-100
                                     dark:text-[#7C93B3]
+                                    dark:hover:bg-[#162239]
+                                    disabled:opacity-40
                                 "
                             >
-                                ✕
+                                <X
+                                    size={18}
+                                />
                             </button>
 
                         </div>
 
+
+                        {/* FORM */}
+
                         <form
                             onSubmit={handleSubmit}
+                            className="p-6 sm:p-7"
                         >
 
                             <div
@@ -1601,6 +2761,7 @@ export default function EmployeeManagementPage() {
                                     }
                                 />
 
+
                                 <InputField
                                     label="First Name"
                                     name="firstName"
@@ -1614,6 +2775,7 @@ export default function EmployeeManagementPage() {
                                     }
                                 />
 
+
                                 <InputField
                                     label="Last Name"
                                     name="lastName"
@@ -1626,6 +2788,7 @@ export default function EmployeeManagementPage() {
                                         handleFieldChange
                                     }
                                 />
+
 
                                 <InputField
                                     label="Email"
@@ -1641,9 +2804,12 @@ export default function EmployeeManagementPage() {
                                     }
                                 />
 
-                                {/* Password */}
 
-                                <div className="relative">
+                                {/* PASSWORD */}
+
+                                <div
+                                    className="relative"
+                                >
 
                                     <InputField
                                         label={
@@ -1686,15 +2852,25 @@ export default function EmployeeManagementPage() {
                                             text-slate-500
                                             dark:text-[#7C93B3]
                                         "
+                                        aria-label={
+                                            showPassword
+                                                ? 'Hide password'
+                                                : 'Show password'
+                                        }
                                     >
                                         {showPassword ? (
-                                            <FaEye />
+                                            <FaEye
+                                                size={14}
+                                            />
                                         ) : (
-                                            <FaEyeSlash />
+                                            <FaEyeSlash
+                                                size={14}
+                                            />
                                         )}
                                     </button>
 
                                 </div>
+
 
                                 <InputField
                                     label="Phone"
@@ -1711,6 +2887,7 @@ export default function EmployeeManagementPage() {
                                     maxLength={10}
                                 />
 
+
                                 <InputField
                                     label="Department"
                                     name="department"
@@ -1723,6 +2900,7 @@ export default function EmployeeManagementPage() {
                                     }
                                 />
 
+
                                 <InputField
                                     label="Designation"
                                     name="designation"
@@ -1734,6 +2912,7 @@ export default function EmployeeManagementPage() {
                                         handleFieldChange
                                     }
                                 />
+
 
                                 <InputField
                                     label="Basic Salary"
@@ -1748,6 +2927,7 @@ export default function EmployeeManagementPage() {
                                     }
                                 />
 
+
                                 <InputField
                                     label="Date of Joining"
                                     name="dateOfJoining"
@@ -1760,6 +2940,7 @@ export default function EmployeeManagementPage() {
                                     }
                                 />
 
+
                                 <InputField
                                     label="Date of Birth"
                                     name="dateOfBirth"
@@ -1770,14 +2951,11 @@ export default function EmployeeManagementPage() {
                                     onChange={
                                         handleFieldChange
                                     }
-                                    max={
-                                        new Date()
-                                            .toISOString()
-                                            .split('T')[0]
-                                    }
+                                    max={today}
                                 />
 
                             </div>
+
 
                             {/* ROLE */}
 
@@ -1793,36 +2971,58 @@ export default function EmployeeManagementPage() {
                                         dark:text-[#B5D4F4]
                                     "
                                 >
-                                    Role{' '}
-                                    <span className="text-red-500">
+                                    Role
+                                    {' '}
+                                    <span
+                                        className="
+                                            text-red-500
+                                            dark:text-[#F09595]
+                                        "
+                                    >
                                         *
                                     </span>
                                 </label>
 
-                                <select
-                                    value={form.role}
-                                    onChange={(event) =>
-                                        handleFieldChange(
-                                            'role',
-                                            event.target.value
-                                        )
-                                    }
-                                    className={INPUT_CLASS}
+
+                                <div
+                                    className="
+                                        relative
+                                    "
                                 >
-                                    <option value="EMPLOYEE">
-                                        EMPLOYEE
-                                    </option>
 
-                                    <option value="HR">
-                                        HR
-                                    </option>
+                                    <select
+                                        value={
+                                            form.role
+                                        }
+                                        onChange={(event) =>
+                                            handleFieldChange(
+                                                'role',
+                                                event.target.value
+                                            )
+                                        }
+                                        className={
+                                            INPUT_CLASS
+                                        }
+                                    >
 
-                                    <option value="ADMIN">
-                                        ADMIN
-                                    </option>
-                                </select>
+                                        <option value="EMPLOYEE">
+                                            EMPLOYEE
+                                        </option>
+
+                                        <option value="HR">
+                                            HR
+                                        </option>
+
+                                        <option value="ADMIN">
+                                            ADMIN
+                                        </option>
+
+                                    </select>
+
+                                </div>
 
                             </div>
+
 
                             {/* BUTTONS */}
 
@@ -1832,15 +3032,14 @@ export default function EmployeeManagementPage() {
                                     flex-col
                                     sm:flex-row
                                     gap-2.5
-                                    mt-6
+                                    mt-7
                                 "
                             >
 
                                 <button
                                     type="button"
-                                    onClick={() =>
-                                        setShowForm(false)
-                                    }
+                                    onClick={closeForm}
+                                    disabled={submitting}
                                     className="
                                         flex-1
                                         py-3
@@ -1850,16 +3049,22 @@ export default function EmployeeManagementPage() {
                                         cursor-pointer
                                         bg-slate-100
                                         text-slate-700
+                                        hover:bg-slate-200
                                         dark:bg-[#111A2C]
                                         dark:text-[#B5D4F4]
+                                        dark:hover:bg-[#162239]
+                                        disabled:opacity-50
                                     "
                                 >
                                     Cancel
                                 </button>
 
+
                                 <button
                                     type="submit"
-                                    disabled={submitting}
+                                    disabled={
+                                        submitting
+                                    }
                                     className="
                                         flex-1
                                         py-3
@@ -1871,10 +3076,12 @@ export default function EmployeeManagementPage() {
                                         justify-center
                                         gap-2
                                         cursor-pointer
-                                        bg-indigo-500
+                                        bg-indigo-600
                                         text-white
+                                        hover:bg-indigo-700
                                         dark:bg-[#378ADD]
                                         dark:text-[#042C53]
+                                        dark:hover:bg-[#4A9BEA]
                                         disabled:opacity-60
                                         disabled:cursor-not-allowed
                                     "
@@ -1884,7 +3091,9 @@ export default function EmployeeManagementPage() {
                                         <>
                                             <Loader2
                                                 size={16}
-                                                className="animate-spin"
+                                                className="
+                                                    animate-spin
+                                                "
                                             />
 
                                             Saving...
@@ -1906,167 +3115,226 @@ export default function EmployeeManagementPage() {
                 </div>
             )}
 
-            {/* =================================================
-               DELETE MODAL
-            ================================================= */}
 
-            {showDeleteConfirm && (
+            {/* =====================================================
+               DELETE CONFIRMATION MODAL
+               
+               This modal is ADMIN ONLY.
+            ====================================================== */}
 
-                <div
-                    className="
-                        fixed
-                        inset-0
-                        z-[100]
-                        flex
-                        items-center
-                        justify-center
-                        p-4
-                        bg-black/50
-                        backdrop-blur-sm
-                    "
-                >
+            {showDeleteConfirm &&
+                isAdmin && (
 
                     <div
                         className="
-                            w-full
-                            max-w-[400px]
-                            rounded-2xl
-                            p-7
-                            text-center
-                            border
-                            bg-white
-                            border-slate-200
-                            dark:bg-[#0F1728]
-                            dark:border-[#1B2740]
+                            fixed
+                            inset-0
+                            z-[100]
+                            flex
+                            items-center
+                            justify-center
+                            p-4
+                            bg-black/50
+                            backdrop-blur-sm
                         "
+                        onMouseDown={(event) => {
+                            if (
+                                event.target ===
+                                event.currentTarget
+                            ) {
+                                setShowDeleteConfirm(
+                                    null
+                                );
+                            }
+                        }}
                     >
 
-                        <AlertTriangle
-                            size={48}
-                            strokeWidth={1.5}
+                        <div
                             className="
-                                mx-auto
-                                mb-4
-                                text-red-500
-                                dark:text-[#F09595]
+                                w-full
+                                max-w-[430px]
+                                rounded-2xl
+                                p-7
+                                text-center
+                                border
+                                bg-white
+                                border-slate-200
+                                shadow-2xl
+                                dark:bg-[#0F1728]
+                                dark:border-[#1B2740]
                             "
-                        />
-
-                        <h2
-                            className="
-                                text-lg
-                                font-extrabold
-                                text-slate-900
-                                dark:text-[#E6F1FB]
-                            "
+                            onMouseDown={(event) =>
+                                event.stopPropagation()
+                            }
                         >
-                            Delete Employee?
-                        </h2>
 
-                        <p
-                            className="
-                                mt-2
-                                text-[13px]
-                                text-slate-500
-                                dark:text-[#7C93B3]
-                            "
-                        >
-                            Are you sure you want to delete{' '}
-
-                            <strong
+                            <div
                                 className="
+                                    w-14
+                                    h-14
+                                    mx-auto
+                                    mb-4
+                                    rounded-2xl
+                                    flex
+                                    items-center
+                                    justify-center
+                                    bg-red-50
+                                    text-red-500
+                                    dark:bg-[#3A1717]
+                                    dark:text-[#F09595]
+                                "
+                            >
+                                <AlertTriangle
+                                    size={27}
+                                    strokeWidth={1.8}
+                                />
+                            </div>
+
+
+                            <h2
+                                className="
+                                    text-lg
+                                    font-extrabold
                                     text-slate-900
                                     dark:text-[#E6F1FB]
                                 "
                             >
-                                {
-                                    showDeleteConfirm.firstName
-                                }{' '}
-                                {
-                                    showDeleteConfirm.lastName
-                                }
-                            </strong>
-                            ?
-                        </p>
+                                Delete Employee?
+                            </h2>
 
-                        <div
-                            className="
-                                flex
-                                gap-2.5
-                                mt-6
-                            "
-                        >
 
-                            <button
-                                type="button"
-                                onClick={() =>
-                                    setShowDeleteConfirm(
-                                        null
-                                    )
-                                }
+                            <p
                                 className="
-                                    flex-1
-                                    py-3
-                                    rounded-xl
-                                    text-sm
-                                    font-semibold
-                                    cursor-pointer
-                                    bg-slate-100
-                                    text-slate-700
-                                    dark:bg-[#111A2C]
-                                    dark:text-[#B5D4F4]
+                                    mt-2
+                                    text-[13px]
+                                    leading-5
+                                    text-slate-500
+                                    dark:text-[#7C93B3]
                                 "
                             >
-                                Cancel
-                            </button>
+                                Are you sure you want to
+                                delete
+                                {' '}
+                                <strong
+                                    className="
+                                        text-slate-900
+                                        dark:text-[#E6F1FB]
+                                    "
+                                >
+                                    {
+                                        showDeleteConfirm.firstName
+                                    }
+                                    {' '}
+                                    {
+                                        showDeleteConfirm.lastName
+                                    }
+                                </strong>
+                                ?
+                                <br />
+                                This action cannot be undone.
+                            </p>
 
-                            <button
-                                type="button"
-                                disabled={
-                                    deleting ===
-                                    showDeleteConfirm.id
-                                }
-                                onClick={() => handleDelete(showDeleteConfirm)}
+
+                            <div
                                 className="
-                                    flex-1
-                                    py-3
-                                    rounded-xl
-                                    text-sm
-                                    font-bold
                                     flex
-                                    items-center
-                                    justify-center
-                                    gap-2
-                                    cursor-pointer
-                                    bg-red-600
-                                    text-white
-                                    dark:bg-[#A32D2D]
-                                    disabled:opacity-60
-                                    disabled:cursor-not-allowed
+                                    gap-2.5
+                                    mt-6
                                 "
                             >
 
-                                {deleting ===
-                                    showDeleteConfirm.id ? (
-                                    <>
-                                        <Loader2
-                                            size={16}
-                                            className="animate-spin"
-                                        />
-                                        Deleting...
-                                    </>
-                                ) : (
-                                    'Yes, Delete'
-                                )}
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setShowDeleteConfirm(
+                                            null
+                                        )
+                                    }
+                                    disabled={
+                                        deleting !== null
+                                    }
+                                    className="
+                                        flex-1
+                                        py-3
+                                        rounded-xl
+                                        text-sm
+                                        font-semibold
+                                        cursor-pointer
+                                        bg-slate-100
+                                        text-slate-700
+                                        hover:bg-slate-200
+                                        dark:bg-[#111A2C]
+                                        dark:text-[#B5D4F4]
+                                        dark:hover:bg-[#162239]
+                                        disabled:opacity-50
+                                    "
+                                >
+                                    Cancel
+                                </button>
 
-                            </button>
+
+                                <button
+                                    type="button"
+                                    disabled={
+                                        deleting ===
+                                        showDeleteConfirm.id
+                                    }
+                                    onClick={() =>
+                                        handleDelete(
+                                            showDeleteConfirm
+                                        )
+                                    }
+                                    className="
+                                        flex-1
+                                        py-3
+                                        rounded-xl
+                                        text-sm
+                                        font-bold
+                                        flex
+                                        items-center
+                                        justify-center
+                                        gap-2
+                                        cursor-pointer
+                                        bg-red-600
+                                        text-white
+                                        hover:bg-red-700
+                                        dark:bg-[#A32D2D]
+                                        dark:hover:bg-[#C43B3B]
+                                        disabled:opacity-60
+                                        disabled:cursor-not-allowed
+                                    "
+                                >
+
+                                    {deleting ===
+                                        showDeleteConfirm.id ? (
+                                        <>
+                                            <Loader2
+                                                size={16}
+                                                className="
+                                                    animate-spin
+                                                "
+                                            />
+
+                                            Deleting...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Trash2
+                                                size={15}
+                                            />
+
+                                            Yes, Delete
+                                        </>
+                                    )}
+
+                                </button>
+
+                            </div>
 
                         </div>
 
                     </div>
-
-                </div>
-            )}
+                )}
 
         </div>
     );

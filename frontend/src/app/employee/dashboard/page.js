@@ -1908,7 +1908,7 @@ export default function EmployeeDashboard() {
             style={{
               display: 'grid',
               gridTemplateColumns:
-                '1fr 1fr',
+                'minmax(0, 1fr) minmax(0, 1fr)',
               gap: '18px',
             }}
           >
@@ -2184,14 +2184,8 @@ export default function EmployeeDashboard() {
                                 '38px',
                               borderRadius:
                                 '12px',
-                              background:
-                                notification.isRead
-                                  ? 'var(--bg-primary)'
-                                  : 'rgba(59,130,246,.10)',
-                              color:
-                                notification.isRead
-                                  ? 'var(--text-secondary)'
-                                  : '#3b82f6',
+                              background: 'var(--bg-primary)',
+                              color: 'var(--text-secondary)',
                               display:
                                 'flex',
                               alignItems:
@@ -2340,5 +2334,5 @@ export default function EmployeeDashboard() {
         </>
       )}
     </div>
-  );
+  )  
 }
